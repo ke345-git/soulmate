@@ -52,8 +52,26 @@ const useAuthStore = create((set, get) => ({
       const { data } = await api.put('/auth/me', updates)
       localStorage.setItem('soulmate_user', JSON.stringify(data.user))
       set({ user: data.user })
+      return data.user
     } catch (err) {
-      console.error('更新失败:', err)
+      const msg = err.response?.data?.detail || '更新失败'
+      set({ error: msg })
+      throw new Error(msg)
+    }
+  },
+
+  async fetchUser() {
+    try {
+      const { data } = await api.get('/auth/me')
+      localStorage.setItem('soulmate_user', JSON.stringify(data.user))
+      set({ user: data.user })
+      return data.user
+    } catch (err) {
+      // token 过期则登出
+      if (err.response?.status === 401) {
+        get().logout()
+      }
+      return null
     }
   },
 
