@@ -1,0 +1,19 @@
+{
+  "name": "SoulMate - AI 情感陪伴",
+  "short_name": "SoulMate",
+  "description": "开源 AI 情感陪伴应用 — 你的私密 AI 伴侣",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fef7f2",
+  "theme_color": "#fef7f2",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["social", "lifestyle", "utilities"],
+  "lang": "zh-CN",
+  "orientation": "any"
+}
