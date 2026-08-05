@@ -59,14 +59,32 @@ jobs:
         run: |
           # Copy exe for NSIS
           Copy-Item -Path backend/dist/SoulMate.exe -Destination scripts/SoulMate.exe
-          # Install NSIS
+
+          # Install NSIS with full path
           choco install nsis -y --no-progress
+          $env:Path += ";C:\Program Files (x86)\NSIS"
+          $nsisPath = "C:\Program Files (x86)\NSIS\makensis.exe"
+          if (-not (Test-Path $nsisPath)) {
+            # Try alternate location
+            $nsisPath = Get-ChildItem "C:\Program Files*" -Filter "makensis.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (-not $nsisPath) {
+            Write-Host "❌ NSIS not found"
+            exit 1
+          }
+          Write-Host "NSIS found at: $nsisPath"
+
           # Build installer
           cd scripts
-          makensis installer.nsi
+          & $nsisPath installer.nsi
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ NSIS build failed"
+            exit 1
+          }
+
           # Verify
           if (Test-Path SoulMate-Setup.exe) {
-            Write-Host "✅ Installer built: $(Get-Item SoulMate-Setup.exe).Length bytes"
+            Write-Host "✅ Installer built: $((Get-Item SoulMate-Setup.exe).Length) bytes"
           } else {
             Write-Host "❌ Installer not found"
             exit 1
@@ -244,6 +262,7 @@ jobs:
         run: |
           cd frontend
           npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          npm install -D typescript
 
       - name: Init Capacitor Android
         run: |
