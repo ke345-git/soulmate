@@ -52,34 +52,32 @@ jobs:
       - name: Build with PyInstaller
         run: |
           cd backend
-          pyinstaller --onefile --name SoulMate --add-data "static;static" --add-data "services;services" --add-data "routes;routes" --add-data "models;models" --add-data "middleware;middleware" --add-data "config.py;." --add-data "database.py;." --hidden-import=passlib.handlers.bcrypt --hidden-import=slowapi --hidden-import=uvicorn.logging --hidden-import=uvicorn.loops --hidden-import=uvicorn.protocols --collect-all slowapi app.py
+          python -m PyInstaller --onefile --name SoulMate --add-data "static;static" --add-data "services;services" --add-data "routes;routes" --add-data "models;models" --add-data "middleware;middleware" --add-data "config.py;." --add-data "database.py;." --hidden-import=passlib.handlers.bcrypt --hidden-import=slowapi --collect-all slowapi app.py
 
-      - name: Create Release Package
+      - name: Create NSIS Installer
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path release/SoulMate -Force
-          Copy-Item -Path backend/dist/SoulMate.exe -Destination release/SoulMate/
-          Copy-Item -Path .env.example -Destination release/SoulMate/
-          @"
-          @echo off
-          echo 💝 Starting SoulMate...
-          echo.
-          echo The app will open in your browser at http://localhost:8000
-          echo Keep this window open while using SoulMate.
-          echo.
-          start "" "%~dp0SoulMate.exe"
-          "@ | Out-File -FilePath release/SoulMate/启动SoulMate.bat -Encoding ASCII
+          # Copy exe for NSIS
+          Copy-Item -Path backend/dist/SoulMate.exe -Destination scripts/SoulMate.exe
+          # Install NSIS
+          choco install nsis -y --no-progress
+          # Build installer
+          cd scripts
+          makensis installer.nsi
+          # Verify
+          if (Test-Path SoulMate-Setup.exe) {
+            Write-Host "✅ Installer built: $(Get-Item SoulMate-Setup.exe).Length bytes"
+          } else {
+            Write-Host "❌ Installer not found"
+            exit 1
+          }
 
-      - name: Create ZIP
-        shell: pwsh
-        run: |
-          Compress-Archive -Path release/SoulMate/* -DestinationPath release/SoulMate-Windows.zip
-
-      - name: Upload Artifact
+      - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
           name: SoulMate-Windows
-          path: release/SoulMate-Windows.zip
+          path: scripts/SoulMate-Setup.exe
+          if-no-files-found: error
 
   # ═══════════════════════════════════════════════
   # macOS 桌面版 (PyInstaller)
@@ -113,7 +111,7 @@ jobs:
           cd backend
           pip install -r requirements.txt
           pip install pyinstaller
-          pyinstaller --onefile --name SoulMate \
+          python -m PyInstaller --onefile --name SoulMate \
             --add-data "static:static" \
             --add-data "services:services" \
             --add-data "routes:routes" \
@@ -126,18 +124,25 @@ jobs:
             --collect-all slowapi \
             app.py
 
-      - name: Package as DMG
+      - name: Package for macOS
         run: |
-          mkdir -p release/SoulMate.app/Contents/MacOS
-          cp backend/dist/SoulMate release/SoulMate.app/Contents/MacOS/
-          cp .env.example release/
-          cd release && zip -r SoulMate-macOS.zip SoulMate.app .env.example
+          mkdir -p SoulMate.app/Contents/MacOS
+          cp backend/dist/SoulMate SoulMate.app/Contents/MacOS/
+          cat > SoulMate.app/Contents/MacOS/launch.sh << 'EOF'
+          #!/bin/bash
+          DIR="$(cd "$(dirname "$0")" && pwd)"
+          open "http://localhost:8000"
+          exec "$DIR/SoulMate"
+          EOF
+          chmod +x SoulMate.app/Contents/MacOS/launch.sh SoulMate.app/Contents/MacOS/SoulMate
+          cp .env.example SoulMate.app/Contents/MacOS/
+          zip -r SoulMate-macOS.zip SoulMate.app
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: SoulMate-macOS
-          path: release/SoulMate-macOS.zip
+          path: SoulMate-macOS.zip
 
   # ═══════════════════════════════════════════════
   # Linux 桌面版 (PyInstaller)
@@ -171,7 +176,7 @@ jobs:
           cd backend
           pip install -r requirements.txt
           pip install pyinstaller
-          pyinstaller --onefile --name SoulMate \
+          python -m PyInstaller --onefile --name SoulMate \
             --add-data "static:static" \
             --add-data "services:services" \
             --add-data "routes:routes" \
@@ -184,18 +189,26 @@ jobs:
             --collect-all slowapi \
             app.py
 
-      - name: Package
+      - name: Package for Linux
         run: |
-          mkdir -p release
-          cp backend/dist/SoulMate release/
-          cp .env.example release/
-          cd release && tar -czf SoulMate-Linux.tar.gz SoulMate .env.example
+          mkdir -p SoulMate-linux
+          cp backend/dist/SoulMate SoulMate-linux/
+          cp .env.example SoulMate-linux/
+          cat > SoulMate-linux/start.sh << 'EOF'
+          #!/bin/bash
+          echo "💝 SoulMate starting..."
+          echo "Open http://localhost:8000 in your browser"
+          DIR="$(cd "$(dirname "$0")" && pwd)"
+          "$DIR/SoulMate"
+          EOF
+          chmod +x SoulMate-linux/start.sh SoulMate-linux/SoulMate
+          tar -czf SoulMate-Linux.tar.gz SoulMate-linux
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: SoulMate-Linux
-          path: release/SoulMate-Linux.tar.gz
+          path: SoulMate-Linux.tar.gz
 
   # ═══════════════════════════════════════════════
   # Android APK
@@ -312,3 +325,32 @@ jobs:
           prerelease: false
           files: artifacts/**/*
           generate_release_notes: true
+          body: |
+            ## 🚀 SoulMate ${{ github.ref_name || inputs.version }}
+
+            AI 情感陪伴应用 — 开源、私密、温暖。
+
+            ### 📦 下载安装
+
+            | 平台 | 文件 | 说明 |
+            |------|------|------|
+            | 🪟 **Windows** | `SoulMate-Setup.exe` | 双击安装，桌面会出现 SoulMate 图标 |
+            | 🍎 **macOS** | `SoulMate-macOS.zip` | 解压后双击 `SoulMate.app` |
+            | 🐧 **Linux** | `SoulMate-Linux.tar.gz` | 解压后运行 `./start.sh` |
+            | 📱 **Android** | `app-debug.apk` | 安装后配置服务器地址 |
+            | 🐳 **Docker** | `docker pull` | `docker-compose up -d` |
+
+            ### 🪟 Windows 安装步骤
+            1. 下载 `SoulMate-Setup.exe`
+            2. 双击运行安装程序
+            3. 安装完成后桌面出现 SoulMate 图标
+            4. 双击图标 → 浏览器自动打开 → 开始使用
+
+            ### 🔑 首次使用
+            1. 使用默认管理员账号登录：`admin@soulmate.app` / `admin123`
+            2. 进入「设置」页面配置你的 API Key（OpenAI / Anthropic）
+            3. 进入「角色」页面选择角色开始聊天
+            4. 或者进入「模型」页面添加模型并测试连接
+
+            ### 🔧 技术栈
+            FastAPI + React + SQLite + Tailwind CSS
