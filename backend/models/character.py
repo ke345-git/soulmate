@@ -1,7 +1,7 @@
 """角色模型"""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 from database import Base
@@ -26,8 +26,8 @@ class Character(Base):
     greeting = Column(String, default="你好呀~")
     is_preset = Column(Integer, default=0)  # 0=用户创建, 1=系统预设
     chat_count = Column(Integer, default=0)  # 聊天次数统计
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # 关系
     creator = relationship("User", back_populates="characters")

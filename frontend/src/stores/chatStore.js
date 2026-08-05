@@ -144,7 +144,12 @@ const useChatStore = create((set, get) => ({
       set({ isStreaming: false })
       return { sessionId: newSessionId }
     } catch (err) {
-      set({ isStreaming: false, error: '发送消息失败: ' + err.message })
+      // 清理失败时的占位消息
+      set((state) => ({
+        isStreaming: false,
+        error: '发送消息失败: ' + err.message,
+        messages: state.messages.filter((m) => !m.id.startsWith('temp-')),
+      }))
       return null
     }
   },

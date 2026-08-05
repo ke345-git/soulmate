@@ -77,14 +77,16 @@ def search_memories(
     query_vec = _text_to_keyword_vector(query)
 
     scored = []
+    updated_memories = []  # 记录需要持久化向量的记忆
     for mem in all_memories:
         if mem.vector:
             sim = _cosine_similarity(query_vec, mem.vector)
         else:
-            # 如果没有预计算向量，现场计算
+            # 如果没有预计算向量，现场计算并缓存
             mem_vec = _text_to_keyword_vector(mem.text)
             sim = _cosine_similarity(query_vec, mem_vec)
-            mem.vector = mem_vec  # 缓存
+            mem.vector = mem_vec  # 缓存到内存
+            updated_memories.append(mem)
 
         # 当前会话的记忆加权
         if mem.session_id == session_id:
@@ -93,6 +95,13 @@ def search_memories(
         sim *= (mem.importance / 5.0)
 
         scored.append((mem, sim))
+
+    # 持久化新计算的向量
+    if updated_memories:
+        try:
+            db.commit()
+        except Exception:
+            pass  # 向量持久化失败不影响搜索
 
     scored.sort(key=lambda x: x[1], reverse=True)
 
@@ -108,23 +117,31 @@ def add_chat_memory(
     assistant_message: str,
 ):
     """从一轮对话中自动提取记忆"""
-    # 提取关键信息：用户提到的事实
+    # 使用 (正则, 描述) 元组，避免从正则中手工解析动词
     memory_triggers = [
-        r"我叫(.{1,10})",
-        r"我是(.{1,20})",
-        r"我喜欢(.{1,30})",
-        r"我讨厌(.{1,30})",
-        r"我住在(.{1,20})",
-        r"我的.{0,5}是(.{1,20})",
-        r"我[觉得感觉](.{1,30})",
+        (r"我叫(.{1,10})", "用户的名字是"),
+        (r"我是(.{1,20})", "用户的身份是"),
+        (r"我喜欢(.{1,30})", "用户喜欢"),
+        (r"我讨厌(.{1,30})", "用户讨厌"),
+        (r"我住在(.{1,20})", "用户住在"),
+        (r"我的(.{1,5})是(.{1,20})", "用户的"),
+        (r"我觉得(.{1,30})", "用户觉得"),
+        (r"我感觉(.{1,30})", "用户感觉"),
     ]
 
     combined = user_message + " " + assistant_message
 
-    for pattern in memory_triggers:
+    for pattern, label in memory_triggers:
         matches = re.findall(pattern, combined)
         for match in matches:
-            text = f"用户{pattern[1:pattern.index('(')]}{match.strip()}"
+            # match 可能是字符串（单个捕获组）或元组（多个捕获组）
+            if isinstance(match, tuple):
+                match_text = "".join(str(m) for m in match if m).strip()
+            else:
+                match_text = str(match).strip()
+            if not match_text:
+                continue
+            text = f"{label}{match_text}"
             # 去重检查
             existing = (
                 db.query(ChatEmbedding)

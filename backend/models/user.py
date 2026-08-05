@@ -1,7 +1,7 @@
 """用户模型"""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from passlib.context import CryptContext
@@ -32,8 +32,8 @@ class User(Base):
     custom_base_url = Column(String, default="")
     default_model = Column(String, default="gpt-4o")
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # 关系
     characters = relationship("Character", back_populates="creator", cascade="all, delete-orphan")

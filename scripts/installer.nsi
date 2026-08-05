@@ -13,8 +13,8 @@ RequestExecutionLevel admin
 
 ; 界面设置
 !define MUI_ABORTWARNING
-!define MUI_ICON "..\frontend\public\favicon.ico"
-!define MUI_UNICON "..\frontend\public\favicon.ico"
+; 注意：favicon.ico 不存在时，NSIS 使用默认图标
+; 如需自定义图标，将 favicon.svg 转换为 favicon.ico 放入 frontend/public/
 
 ; 安装页面
 !insertmacro MUI_PAGE_WELCOME

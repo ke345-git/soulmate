@@ -301,25 +301,48 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker Image
-        run: docker build -t soulmate:latest .
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: Test Docker Image
-        run: |
-          docker run -d --name soulmate-test -p 18000:8000 soulmate:latest
-          sleep 5
-          curl -f http://localhost:18000/api/health || echo "Health check failed but continuing"
-          docker stop soulmate-test || true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/soulmate:latest
+            ghcr.io/${{ github.repository_owner }}/soulmate:${{ github.ref_name || inputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # ═══════════════════════════════════════════════
   # Create GitHub Release
   # ═══════════════════════════════════════════════
   create-release:
-    needs: [build-windows, build-macos, build-linux]
+    needs: [build-windows, build-macos, build-linux, build-android, build-docker]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
+
+      - name: Determine Version
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "v=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "v=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Download Artifacts
         uses: actions/download-artifact@v4
@@ -329,16 +352,30 @@ jobs:
       - name: Show Artifacts
         run: find artifacts -type f
 
+      - name: Rename Artifacts
+        run: |
+          mkdir -p release-assets
+          # Windows
+          find artifacts -name "SoulMate-Setup.exe" -exec cp {} release-assets/SoulMate-Windows-Setup.exe \;
+          # macOS
+          find artifacts -name "SoulMate-macOS.zip" -exec cp {} release-assets/SoulMate-macOS.zip \;
+          # Linux
+          find artifacts -name "SoulMate-Linux.tar.gz" -exec cp {} release-assets/SoulMate-Linux.tar.gz \;
+          # Android
+          find artifacts -name "app-debug.apk" -exec cp {} release-assets/SoulMate-Android.apk \;
+          ls -la release-assets/
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: SoulMate ${{ github.ref_name || inputs.version }}
+          name: SoulMate ${{ steps.version.outputs.v }}
+          tag_name: ${{ github.ref_name || inputs.version }}
           draft: false
           prerelease: false
-          files: artifacts/**/*
+          files: release-assets/*
           generate_release_notes: true
           body: |
-            ## 🚀 SoulMate ${{ github.ref_name || inputs.version }}
+            ## 🚀 SoulMate ${{ steps.version.outputs.v }}
 
             AI 情感陪伴应用 — 开源、私密、温暖。
 
@@ -346,17 +383,23 @@ jobs:
 
             | 平台 | 文件 | 说明 |
             |------|------|------|
-            | 🪟 **Windows** | `SoulMate-Setup.exe` | 双击安装，桌面会出现 SoulMate 图标 |
+            | 🪟 **Windows** | `SoulMate-Windows-Setup.exe` | 双击安装，桌面会出现 SoulMate 图标 |
             | 🍎 **macOS** | `SoulMate-macOS.zip` | 解压后双击 `SoulMate.app` |
-            | 🐧 **Linux** | `SoulMate-Linux.tar.gz` | 解压后运行 `./start.sh` |
-            | 📱 **Android** | `app-debug.apk` | 安装后配置服务器地址 |
-            | 🐳 **Docker** | `docker pull` | `docker-compose up -d` |
+            | 🐧 **Linux** | `SoulMate-Linux.tar.gz` | 解压后运行 `chmod +x SoulMate && ./SoulMate` |
+            | 📱 **Android** | `SoulMate-Android.apk` | 安装后配置服务器地址 |
+            | 🐳 **Docker** | `ghcr.io/${{ github.repository_owner }}/soulmate:${{ steps.version.outputs.v }}` | `docker pull` 即可 |
 
             ### 🪟 Windows 安装步骤
-            1. 下载 `SoulMate-Setup.exe`
+            1. 下载 `SoulMate-Windows-Setup.exe`
             2. 双击运行安装程序
             3. 安装完成后桌面出现 SoulMate 图标
             4. 双击图标 → 浏览器自动打开 → 开始使用
+
+            ### 🐳 Docker 部署
+            ```bash
+            docker pull ghcr.io/${{ github.repository_owner }}/soulmate:${{ steps.version.outputs.v }}
+            docker run -d -p 8000:8000 -v soulmate-data:/app/data ghcr.io/${{ github.repository_owner }}/soulmate:${{ steps.version.outputs.v }}
+            ```
 
             ### 🔑 首次使用
             1. 使用默认管理员账号登录：`admin@soulmate.app` / `admin123`

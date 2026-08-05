@@ -1,7 +1,7 @@
 """聊天与记忆模型"""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, Float
 from sqlalchemy.orm import relationship
 from database import Base
@@ -17,8 +17,8 @@ class ChatSession(Base):
     title = Column(String, default="新对话")
     summary = Column(Text, default="")  # AI 生成的对话摘要
     is_active = Column(Integer, default=1)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # 关系
     user = relationship("User", back_populates="chat_sessions")
@@ -53,7 +53,7 @@ class ChatMessage(Base):
     role = Column(String, nullable=False)  # user, assistant, system
     content = Column(Text, nullable=False)
     token_count = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # 关系
     session = relationship("ChatSession", back_populates="messages")
@@ -80,7 +80,7 @@ class ChatEmbedding(Base):
     vector_json = Column(Text, default="[]")  # JSON 格式存储向量
     memory_type = Column(String, default="auto")  # auto=自动提取, manual=手动添加, important=重要记忆
     importance = Column(Integer, default=5)  # 1-10 重要度
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # 关系
     session = relationship("ChatSession", back_populates="embeddings")

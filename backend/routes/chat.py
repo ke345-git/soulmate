@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 from database import get_db
 from models.user import User
 from models.character import Character
@@ -220,7 +221,7 @@ async def send_message(
                 content=full_response,
             )
             db.add(assistant_msg)
-            session.updated_at = None  # trigger update
+            session.updated_at = func.now()  # 显式更新时间戳
             db.commit()
 
             # 更新角色聊天计数

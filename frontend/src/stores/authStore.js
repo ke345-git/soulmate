@@ -7,7 +7,9 @@ const useAuthStore = create((set, get) => ({
   isLoading: false,
   error: null,
 
-  get isAuthenticated() {
+  // 注意：Zustand 不支持 class getter 响应式更新
+  // 使用时请用: useAuthStore(s => !!s.token && !!s.user)
+  isAuthenticated() {
     return !!get().token && !!get().user
   },
 

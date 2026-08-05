@@ -39,7 +39,7 @@ sudo apt-get install -y -qq \
 # 2. 克隆项目（或从当前目录复制）
 if [ ! -d "$APP_DIR" ]; then
     echo -e "${YELLOW}[2/6] 克隆项目...${NC}"
-    git clone https://github.com/YOUR_USERNAME/soulmate.git "$APP_DIR"
+    git clone https://github.com/ke345-git/soulmate.git "$APP_DIR"
 else
     echo -e "${YELLOW}[2/6] 项目目录已存在，更新代码...${NC}"
     cd "$APP_DIR"

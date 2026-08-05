@@ -1,6 +1,6 @@
 """模型配置模型"""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, Float, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
@@ -23,8 +23,8 @@ class ModelConfig(Base):
     top_p = Column(Float, default=1.0)
     extra_config = Column(Text, default="{}")  # 额外配置 JSON
     last_test_result = Column(String, default="")  # online/offline/unknown
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # 关系
     user = relationship("User", back_populates="model_configs")

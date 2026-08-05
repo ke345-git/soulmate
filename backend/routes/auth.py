@@ -1,6 +1,6 @@
 """认证路由：注册、登录、用户信息"""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
@@ -44,7 +44,7 @@ class UserUpdateRequest(BaseModel):
 
 # --- Helper ---
 def create_token(user_id: str) -> str:
-    expire = datetime.utcnow() + timedelta(hours=settings.JWT_EXPIRE_HOURS)
+    expire = datetime.now(timezone.utc) + timedelta(hours=settings.JWT_EXPIRE_HOURS)
     payload = {"sub": user_id, "exp": expire}
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
