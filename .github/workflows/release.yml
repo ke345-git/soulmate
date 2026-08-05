@@ -269,7 +269,7 @@ jobs:
           cd frontend
           # Clean any previous attempt
           rm -rf android .capacitor
-          # Create fresh Capacitor project
+          # Create fresh Capacitor project (mjs config is picked up automatically)
           npx cap init SoulMate app.soulmate.mobile --web-dir=dist
           npx cap add android
 
