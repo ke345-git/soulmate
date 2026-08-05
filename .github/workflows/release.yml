@@ -216,29 +216,58 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Android SDK
+        run: |
+          ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+          ANDROID_HOME=$ANDROID_SDK_ROOT
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
+          # Accept licenses
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          # Install required SDK components
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || true
+
       - name: Build Frontend
         run: |
           cd frontend
           npm ci
           npm run build
 
-      - name: Install Capacitor & Build APK
+      - name: Setup Capacitor
         run: |
           cd frontend
           npm install @capacitor/cli @capacitor/core @capacitor/android
-          npx cap init SoulMate app.soulmate.mobile --web-dir=dist 2>/dev/null || true
-          npx cap add android 2>/dev/null || true
+          # Only init if android dir doesn't exist
+          if [ ! -d "android" ]; then
+            npx cap init SoulMate app.soulmate.mobile --web-dir=dist
+            npx cap add android
+          fi
           npx cap sync android
-          cd android
+
+      - name: Build APK
+        run: |
+          cd frontend/android
           chmod +x gradlew
-          ./gradlew assembleDebug 2>&1 || echo "Android build needs SDK setup"
+          ./gradlew assembleDebug
+
+      - name: Check APK
+        run: |
+          APK_PATH=frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if [ -f "$APK_PATH" ]; then
+            echo "APK built: $(ls -lh $APK_PATH)"
+          else
+            echo "APK not found at $APK_PATH"
+            ls -R frontend/android/app/build/outputs/ || true
+            exit 1
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: SoulMate-Android
           path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
-        continue-on-error: true
 
   # ═══════════════════════════════════════════════
   # Docker Image
@@ -262,7 +291,7 @@ jobs:
   # Create GitHub Release
   # ═══════════════════════════════════════════════
   create-release:
-    needs: [build-windows, build-macos, build-linux, build-android]
+    needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
