@@ -1,0 +1,273 @@
+name: 🚀 Build & Release
+
+# 当推送 tag (v*) 或手动触发时构建所有平台
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  # ═══════════════════════════════════════════════
+  # Windows Desktop (Electron)
+  # ═══════════════════════════════════════════════
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: electron/package.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Install Backend Dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Build Electron App
+        run: |
+          cd electron
+          npm ci
+          npm run build:win
+
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: SoulMate-Windows
+          path: electron/release/*.exe
+
+  # ═══════════════════════════════════════════════
+  # macOS Desktop (Electron)
+  # ═══════════════════════════════════════════════
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: electron/package.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Install Backend Dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Build Electron App
+        run: |
+          cd electron
+          npm ci
+          npm run build:mac
+
+      - name: Upload macOS App
+        uses: actions/upload-artifact@v4
+        with:
+          name: SoulMate-macOS
+          path: electron/release/*.dmg
+
+  # ═══════════════════════════════════════════════
+  # Linux Desktop (Electron)
+  # ═══════════════════════════════════════════════
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: electron/package.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Install Backend Dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Build Electron App
+        run: |
+          cd electron
+          npm ci
+          npm run build:linux
+
+      - name: Upload Linux App
+        uses: actions/upload-artifact@v4
+        with:
+          name: SoulMate-Linux
+          path: |
+            electron/release/*.AppImage
+            electron/release/*.deb
+
+  # ═══════════════════════════════════════════════
+  # Android APK
+  # ═══════════════════════════════════════════════
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Setup Capacitor
+        run: |
+          cd frontend
+          npm install --save-dev @capacitor/cli @capacitor/core @capacitor/android
+          npx cap init SoulMate app.soulmate.mobile --web-dir=dist
+          npx cap add android
+
+      - name: Build APK
+        run: |
+          cd frontend/android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SoulMate-Android
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+
+  # ═══════════════════════════════════════════════
+  # Docker Image
+  # ═══════════════════════════════════════════════
+  build-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: soulmate:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ═══════════════════════════════════════════════
+  # Create GitHub Release
+  # ═══════════════════════════════════════════════
+  create-release:
+    needs: [build-windows, build-macos, build-linux, build-android]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: List artifacts
+        run: ls -laR release-artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: SoulMate ${{ github.ref_name || inputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            release-artifacts/**/*
+          generate_release_notes: true
+          body: |
+            ## 🚀 SoulMate Release
+
+            ### 📦 下载
+
+            | 平台 | 文件 |
+            |------|------|
+            | 🪟 Windows | `SoulMate Setup *.exe` |
+            | 🍎 macOS | `SoulMate-*.dmg` |
+            | 🐧 Linux | `SoulMate-*.AppImage` |
+            | 📱 Android | `app-debug.apk` |
+            | 🐳 Docker | `docker pull soulmate:latest` |
+
+            ### 🚀 快速开始
+
+            **Windows**: 下载 `SoulMate Setup.exe`，双击安装即可使用。
+            **macOS**: 下载 `.dmg`，拖入 Applications 文件夹。
+            **Linux**: 下载 `.AppImage`，`chmod +x` 后运行。
+            **Android**: 下载 APK 安装，配置服务器地址后使用。
+            **Docker**: `docker-compose up -d`
+
+            ### 🔧 技术栈
+
+            - 后端: FastAPI + SQLite + JWT
+            - 前端: React + Tailwind CSS
+            - 桌面: Electron
+            - 移动: Capacitor
+
+            ---
+            🤖 Generated with [Claude Code](https://claude.com/claude-code)

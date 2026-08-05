@@ -32,3 +32,16 @@ Thumbs.db
 # Uploads
 backend/uploads/
 backend/data/characters.json.bak
+
+# Build artifacts
+electron/release/
+electron/node_modules/
+frontend/android/
+frontend/ios/
+*.apk
+*.aab
+
+# Capacitor
+frontend/.capacitor/
+frontend/android/
+frontend/ios/

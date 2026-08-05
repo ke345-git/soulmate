@@ -2,11 +2,13 @@
 FastAPI 入口
 """
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -69,15 +71,32 @@ app.include_router(models_router)
 app.include_router(characters_router)
 app.include_router(chat_router)
 
+# 生产模式：提供前端静态文件
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(STATIC_DIR) and os.path.isdir(STATIC_DIR):
+    app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
 
-@app.get("/")
-def root():
-    return {
-        "name": settings.APP_NAME,
-        "version": "1.0.0",
-        "status": "running",
-        "docs": "/docs",
-    }
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """SPA fallback — 非 API 路径返回 index.html"""
+        file_path = os.path.join(STATIC_DIR, full_path)
+        if full_path and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+    # 覆盖 root 端点
+    @app.get("/")
+    async def root_spa():
+        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+else:
+    @app.get("/")
+    def root():
+        return {
+            "name": settings.APP_NAME,
+            "version": "1.0.0",
+            "status": "running",
+            "docs": "/docs",
+        }
 
 
 @app.get("/api/health")
@@ -89,4 +108,5 @@ def health_check():
 # Gunicorn 入口
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=settings.DEBUG)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=settings.DEBUG)
