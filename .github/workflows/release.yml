@@ -273,13 +273,6 @@ jobs:
           name: SoulMate-Android
           path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          fi
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: SoulMate-Android
-          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
 
   # ═══════════════════════════════════════════════
   # Docker Image
