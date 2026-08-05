@@ -217,27 +217,9 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK
-        run: |
-          # Install Android command-line tools
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          cd $HOME/android-sdk/cmdline-tools
-          curl -sSLO https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q commandlinetools-linux-11076708_latest.zip
-          mv cmdline-tools latest
-          rm commandlinetools-linux-11076708_latest.zip
-
-          # Set env vars
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-
-          # Accept licenses & install SDK
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager \
-            "platform-tools" \
-            "platforms;android-34" \
-            "build-tools;34.0.0"
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34 build-tools;34.0.0 platform-tools'
 
       - name: Build Frontend
         run: |
@@ -245,36 +227,39 @@ jobs:
           npm ci
           npm run build
 
-      - name: Setup Capacitor
+      - name: Install Capacitor
         run: |
           cd frontend
-          npm install @capacitor/cli @capacitor/core @capacitor/android
-          # Only init if android dir doesn't exist
-          if [ ! -d "android" ]; then
-            npx cap init SoulMate app.soulmate.mobile --web-dir=dist
-            npx cap add android
-          fi
-          npx cap sync android
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
 
-      - name: Configure Android SDK path
+      - name: Init Capacitor Android
+        run: |
+          cd frontend
+          # Clean any previous attempt
+          rm -rf android .capacitor
+          # Create fresh Capacitor project
+          npx cap init SoulMate app.soulmate.mobile --web-dir=dist
+          npx cap add android
+
+      - name: Configure Android
         run: |
           echo "sdk.dir=$ANDROID_HOME" > frontend/android/local.properties
+          # Increase Gradle memory
+          mkdir -p frontend/android/gradle
+          echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m" >> frontend/android/gradle.properties
 
       - name: Build APK
         run: |
           cd frontend/android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Check APK
-        run: |
-          APK_PATH=frontend/android/app/build/outputs/apk/debug/app-debug.apk
-          if [ -f "$APK_PATH" ]; then
-            echo "APK built: $(ls -lh $APK_PATH)"
-          else
-            echo "APK not found at $APK_PATH"
-            ls -R frontend/android/app/build/outputs/ || true
-            exit 1
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SoulMate-Android
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
           fi
 
       - name: Upload APK
