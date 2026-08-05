@@ -8,7 +8,7 @@ import threading
 import webbrowser
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -90,6 +90,12 @@ app.include_router(models_router)
 app.include_router(characters_router)
 app.include_router(chat_router)
 
+
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok", "app": settings.APP_NAME}
+
+
 # 提供前端静态文件
 STATIC_DIR = get_static_dir()
 HAS_STATIC = os.path.exists(STATIC_DIR) and os.path.isdir(STATIC_DIR)
@@ -102,10 +108,9 @@ if HAS_STATIC:
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        """SPA fallback"""
-        file_path = os.path.join(STATIC_DIR, full_path)
-        if full_path and os.path.isfile(file_path):
-            return FileResponse(file_path)
+        """SPA fallback — 只处理非 API 请求"""
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
         return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
     @app.get("/")
@@ -120,11 +125,6 @@ else:
             "status": "running",
             "docs": "/docs",
         }
-
-
-@app.get("/api/health")
-def health_check():
-    return {"status": "ok", "app": settings.APP_NAME}
 
 
 # ─── 启动入口 ───────────────────────────────────────────
