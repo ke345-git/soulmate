@@ -33,15 +33,21 @@ Thumbs.db
 backend/uploads/
 backend/data/characters.json.bak
 
-# Build artifacts
-electron/release/
-electron/node_modules/
+# Frontend build output in backend
+backend/static/*
+!backend/static/.gitkeep
+
+# PyInstaller
+*.spec
+backend/dist/
+backend/build/
+
+# Release artifacts
+release/
+
+# Android/Capacitor
 frontend/android/
 frontend/ios/
+frontend/.capacitor/
 *.apk
 *.aab
-
-# Capacitor
-frontend/.capacitor/
-frontend/android/
-frontend/ios/

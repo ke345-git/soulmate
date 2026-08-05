@@ -3,6 +3,9 @@ FastAPI 入口
 """
 
 import os
+import sys
+import threading
+import webbrowser
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -19,6 +22,22 @@ from routes import auth_router, models_router, characters_router, chat_router
 
 # 速率限制器
 limiter = Limiter(key_func=get_remote_address)
+
+
+def get_static_dir():
+    """获取前端静态文件目录（兼容 PyInstaller 打包）"""
+    # PyInstaller 打包后的路径
+    if getattr(sys, 'frozen', False):
+        return os.path.join(sys._MEIPASS, "static")
+    # 正常 Python 运行
+    return os.path.join(os.path.dirname(__file__), "static")
+
+
+def open_browser(port: int):
+    """延迟打开浏览器"""
+    import time
+    time.sleep(2)
+    webbrowser.open(f"http://localhost:{port}")
 
 
 @asynccontextmanager
@@ -65,26 +84,30 @@ async def limit_body_size(request: Request, call_next):
     return response
 
 
-# 注册路由
+# 注册 API 路由
 app.include_router(auth_router)
 app.include_router(models_router)
 app.include_router(characters_router)
 app.include_router(chat_router)
 
-# 生产模式：提供前端静态文件
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
-if os.path.exists(STATIC_DIR) and os.path.isdir(STATIC_DIR):
-    app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
+# 提供前端静态文件
+STATIC_DIR = get_static_dir()
+HAS_STATIC = os.path.exists(STATIC_DIR) and os.path.isdir(STATIC_DIR)
+
+if HAS_STATIC:
+    # 静态资源
+    assets_dir = os.path.join(STATIC_DIR, "assets")
+    if os.path.isdir(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        """SPA fallback — 非 API 路径返回 index.html"""
+        """SPA fallback"""
         file_path = os.path.join(STATIC_DIR, full_path)
         if full_path and os.path.isfile(file_path):
             return FileResponse(file_path)
         return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
-    # 覆盖 root 端点
     @app.get("/")
     async def root_spa():
         return FileResponse(os.path.join(STATIC_DIR, "index.html"))
@@ -101,12 +124,19 @@ else:
 
 @app.get("/api/health")
 def health_check():
-    """健康检查接口"""
     return {"status": "ok", "app": settings.APP_NAME}
 
 
-# Gunicorn 入口
+# ─── 启动入口 ───────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=settings.DEBUG)
+    is_desktop = os.environ.get("SOULMATE_DESKTOP", "0") == "1"
+
+    if is_desktop or getattr(sys, 'frozen', False):
+        # 桌面模式：自动打开浏览器
+        print(f"💝 SoulMate 启动中... 浏览器将自动打开 http://localhost:{port}")
+        threading.Thread(target=open_browser, args=(port,), daemon=True).start()
+
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
