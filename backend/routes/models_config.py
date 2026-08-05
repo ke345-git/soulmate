@@ -135,15 +135,37 @@ def delete_model(
 async def test_model(
     req: TestRequest,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """测试模型连接是否可用"""
+    # 如果没传 api_key，尝试从用户配置或模型配置中获取
+    api_key = req.api_key
+    if not api_key:
+        # 尝试从用户存储的 key 获取
+        key_attr = f"{req.provider}_api_key"
+        api_key = getattr(current_user, key_attr, "")
+    if not api_key:
+        # 尝试从该用户的同名模型配置获取
+        model_cfg = (
+            db.query(ModelConfig)
+            .filter(
+                ModelConfig.user_id == current_user.id,
+                ModelConfig.provider == req.provider,
+            )
+            .first()
+        )
+        if model_cfg and model_cfg.api_key:
+            api_key = model_cfg.api_key
+    if not api_key:
+        return {"success": False, "message": "未找到 API Key，请先在设置页面配置"}
+
     try:
         result = await test_model_connection(
             provider=req.provider,
-            api_key=req.api_key,
+            api_key=api_key,
             base_url=req.base_url,
             model=req.model,
         )
-        return {"success": result, "message": "连接正常" if result else "连接失败"}
+        return {"success": result, "message": "连接正常 ✓" if result else "连接失败，请检查 API Key 和网络"}
     except Exception as e:
-        return {"success": False, "message": str(e)}
+        return {"success": False, "message": f"连接异常: {str(e)[:100]}"}

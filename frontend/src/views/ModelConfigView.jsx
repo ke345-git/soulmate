@@ -24,7 +24,7 @@ export default function ModelConfigView() {
   const [showForm, setShowForm] = useState(false)
   const [editingModel, setEditingModel] = useState(null)
   const [testingId, setTestingId] = useState(null)
-  const [testResult, setTestResult] = useState(null)
+  const [testResults, setTestResults] = useState({})  // { [modelId]: {success, message} }
 
   const [form, setForm] = useState({
     name: '',
@@ -54,7 +54,6 @@ export default function ModelConfigView() {
     })
     setEditingModel(null)
     setShowForm(false)
-    setTestResult(null)
   }
 
   const handleProviderChange = (provider) => {
@@ -101,13 +100,14 @@ export default function ModelConfigView() {
 
   const handleTest = async (model) => {
     setTestingId(model.id)
-    setTestResult(null)
-    const result = await testModel(model.provider, form.api_key || '***', model.base_url, model.model)
-    setTestResult(result)
+    const result = await testModel(model.provider, '', model.base_url, model.model)
+    setTestResults((prev) => ({ ...prev, [model.id]: result }))
     setTestingId(null)
-    // 更新模型状态
+    // 更新模型在线状态
     if (result.success) {
-      await updateModel(model.id, { ...model, last_test_result: 'online' })
+      await updateModel(model.id, { last_test_result: 'online' })
+    } else {
+      await updateModel(model.id, { last_test_result: 'offline' })
     }
   }
 
@@ -233,16 +233,17 @@ export default function ModelConfigView() {
                 </button>
               </div>
 
-              {testResult && testingId === model.id && (
+              {testResults[model.id] && (
                 <div
                   className={cn(
                     'mt-3 p-2 rounded-lg text-xs',
-                    testResult.success
+                    testResults[model.id].success
                       ? 'bg-green-50 text-green-600'
                       : 'bg-red-50 text-red-500'
                   )}
                 >
-                  {testResult.message}
+                  {testResults[model.id].success ? '✅ ' : '❌ '}
+                  {testResults[model.id].message}
                 </div>
               )}
             </div>
