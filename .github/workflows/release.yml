@@ -372,6 +372,7 @@ jobs:
           tag_name: ${{ github.ref_name || inputs.version }}
           draft: false
           prerelease: false
+          overwrite: true
           files: release-assets/*
           generate_release_notes: true
           body: |
