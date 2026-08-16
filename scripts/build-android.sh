@@ -18,7 +18,7 @@ npm install --save-dev @capacitor/cli @capacitor/core @capacitor/android
 
 # 3. 初始化并同步 Android 项目
 echo "[3/4] Syncing Android project..."
-npx cap init SoulMate app.soulmate.mobile --web-dir=dist 2>/dev/null || true
+# 使用仓库提交的 capacitor.config.json（appId/权限等已在其中）
 npx cap add android 2>/dev/null || true
 npx cap sync android
 

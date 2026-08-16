@@ -1,0 +1,11 @@
+{
+  "appId": "app.soulmate.mobile",
+  "appName": "SoulMate",
+  "webDir": "dist",
+  "server": {
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

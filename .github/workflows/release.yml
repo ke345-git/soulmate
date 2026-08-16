@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   # ═══════════════════════════════════════════════
@@ -264,15 +265,12 @@ jobs:
         run: |
           cd frontend
           npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
-          npm install -D typescript
 
-      - name: Init Capacitor Android
+      - name: Add Capacitor Android Platform
         run: |
           cd frontend
-          # Clean any previous attempt
+          # 使用仓库提交的 capacitor.config.json（appId 等已在其中），无需重新 init
           rm -rf android .capacitor
-          # Create fresh Capacitor project (mjs config is picked up automatically)
-          npx cap init SoulMate app.soulmate.mobile --web-dir=dist
           npx cap add android
 
       - name: Configure Android
