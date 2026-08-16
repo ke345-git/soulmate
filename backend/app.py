@@ -33,6 +33,13 @@ def get_static_dir():
     return os.path.join(os.path.dirname(__file__), "static")
 
 
+def get_portraits_dir():
+    """获取内置立绘目录（兼容 PyInstaller 打包）"""
+    if getattr(sys, 'frozen', False):
+        return os.path.join(sys._MEIPASS, "portraits")
+    return os.path.join(os.path.dirname(__file__), "portraits")
+
+
 def open_browser(port: int):
     """延迟打开浏览器"""
     import time
@@ -50,7 +57,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description="开源 AI 情感陪伴应用 — Replika 替代品",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 
@@ -106,6 +113,11 @@ if HAS_STATIC:
     if os.path.isdir(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
+    # 内置免费立绘（必须在 SPA fallback 之前挂载）
+    portraits_dir = get_portraits_dir()
+    if os.path.isdir(portraits_dir):
+        app.mount("/portraits", StaticFiles(directory=portraits_dir), name="portraits")
+
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         """SPA fallback — 只处理非 API 请求"""
@@ -121,7 +133,7 @@ else:
     def root():
         return {
             "name": settings.APP_NAME,
-            "version": "1.0.0",
+            "version": "1.1.0",
             "status": "running",
             "docs": "/docs",
         }

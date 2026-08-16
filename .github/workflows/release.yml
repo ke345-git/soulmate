@@ -52,7 +52,7 @@ jobs:
       - name: Build with PyInstaller
         run: |
           cd backend
-          python -m PyInstaller --onefile --name SoulMate --add-data "static;static" --add-data "services;services" --add-data "routes;routes" --add-data "models;models" --add-data "middleware;middleware" --add-data "config.py;." --add-data "database.py;." --hidden-import=passlib.handlers.bcrypt --hidden-import=slowapi --collect-all slowapi app.py
+          python -m PyInstaller --onefile --name SoulMate --add-data "static;static" --add-data "portraits;portraits" --add-data "services;services" --add-data "routes;routes" --add-data "models;models" --add-data "middleware;middleware" --add-data "config.py;." --add-data "database.py;." --hidden-import=passlib.handlers.bcrypt --hidden-import=slowapi --collect-all slowapi app.py
 
       - name: Create NSIS Installer
         shell: pwsh
@@ -131,6 +131,7 @@ jobs:
           pip install pyinstaller
           python -m PyInstaller --onefile --name SoulMate \
             --add-data "static:static" \
+            --add-data "portraits:portraits" \
             --add-data "services:services" \
             --add-data "routes:routes" \
             --add-data "models:models" \
@@ -196,6 +197,7 @@ jobs:
           pip install pyinstaller
           python -m PyInstaller --onefile --name SoulMate \
             --add-data "static:static" \
+            --add-data "portraits:portraits" \
             --add-data "services:services" \
             --add-data "routes:routes" \
             --add-data "models:models" \

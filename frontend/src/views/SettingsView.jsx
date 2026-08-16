@@ -201,7 +201,7 @@ export default function SettingsView() {
           <h2 className="text-lg font-semibold text-gray-700">关于 SoulMate</h2>
         </div>
         <div className="text-sm text-gray-400 space-y-1">
-          <p>版本：1.0.0</p>
+          <p>版本：1.1.0</p>
           <p>技术栈：FastAPI + React + SQLite</p>
           <p>开源协议：MIT</p>
           <p><a href="https://github.com/ke345-git/soulmate" target="_blank" rel="noopener noreferrer" className="text-rose-500 hover:underline">GitHub 仓库</a></p>

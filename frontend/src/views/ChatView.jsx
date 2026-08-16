@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { Send, Plus, Trash2, Brain, PanelRightClose, PanelRight, Sparkles } from 'lucide-react'
+import { Send, Plus, Trash2, Brain, PanelRightClose, PanelRight, Sparkles, XCircle } from 'lucide-react'
 import useChatStore from '@/stores/chatStore'
 import useCharacterStore from '@/stores/characterStore'
 import useModelStore from '@/stores/modelStore'
@@ -18,11 +18,13 @@ export default function ChatView() {
     messages,
     isStreaming,
     isLoading,
+    error,
     fetchSessions,
     createSession,
     selectSession,
     sendMessage,
     deleteSession,
+    clearError,
   } = useChatStore()
   const { characters, fetchCharacters } = useCharacterStore()
   const { activeModel, fetchModels } = useModelStore()
@@ -44,6 +46,13 @@ export default function ChatView() {
       selectSession(sessionId)
     }
   }, [sessionId])
+
+  // 进入/切换会话时同步角色（修复从会话列表进入无法直接聊天的 bug）
+  useEffect(() => {
+    if (currentSession?.character_id) {
+      setSelectedCharId(currentSession.character_id)
+    }
+  }, [currentSession?.id])
 
   // 自动滚动到底部
   useEffect(() => {
@@ -120,7 +129,11 @@ export default function ChatView() {
                   }}
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-warmth-100 transition-colors text-left"
                 >
-                  <span className="text-2xl">{char.avatar}</span>
+                  {char.avatar_image ? (
+                    <img src={char.avatar_image} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
+                  ) : (
+                    <span className="text-2xl">{char.avatar}</span>
+                  )}
                   <div>
                     <p className="text-sm font-medium text-gray-700">{char.name}</p>
                     <p className="text-xs text-gray-400">
@@ -151,33 +164,40 @@ export default function ChatView() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {sessions.map((session) => (
-            <button
-              key={session.id}
-              onClick={() => selectSession(session.id)}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all group',
-                currentSession?.id === session.id
-                  ? 'bg-rose-50 border border-rose-200'
-                  : 'hover:bg-warmth-100 border border-transparent'
-              )}
-            >
-              <span className="text-xl">{session.character_avatar}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-700 truncate">{session.title}</p>
-                <p className="text-xs text-gray-400 truncate">{session.character_name}</p>
-              </div>
+          {sessions.map((session) => {
+            const sChar = characters.find((c) => c.id === session.character_id)
+            return (
               <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (confirm('确定删除此对话？')) deleteSession(session.id)
-                }}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded text-gray-300 hover:text-red-500 transition-all"
+                key={session.id}
+                onClick={() => selectSession(session.id)}
+                className={cn(
+                  'w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all group',
+                  currentSession?.id === session.id
+                    ? 'bg-rose-50 border border-rose-200'
+                    : 'hover:bg-warmth-100 border border-transparent'
+                )}
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                {sChar?.avatar_image ? (
+                  <img src={sChar.avatar_image} alt="" className="w-8 h-8 rounded-xl object-cover flex-shrink-0" />
+                ) : (
+                  <span className="text-xl">{session.character_avatar}</span>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-700 truncate">{session.title}</p>
+                  <p className="text-xs text-gray-400 truncate">{session.character_name}</p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (confirm('确定删除此对话？')) deleteSession(session.id)
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded text-gray-300 hover:text-red-500 transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </button>
-            </button>
-          ))}
+            )
+          })}
         </div>
 
         {/* 用户设置快捷入口 */}
@@ -213,18 +233,37 @@ export default function ChatView() {
           </div>
         </div>
 
+        {/* 错误提示条 */}
+        {error && (
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-red-50 border-b border-red-100 text-red-600 text-sm">
+            <span className="flex items-center gap-2 min-w-0">
+              <XCircle className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate">{error}</span>
+            </span>
+            <button onClick={clearError} className="text-red-400 hover:text-red-600 flex-shrink-0">
+              关闭
+            </button>
+          </div>
+        )}
+
         {/* 消息列表 */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 && currentCharacter && (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="text-5xl mb-4">{currentCharacter.avatar}</div>
+              <div className="w-20 h-20 rounded-3xl overflow-hidden flex items-center justify-center text-5xl mb-4 shadow-sm">
+                {currentCharacter.avatar_image ? (
+                  <img src={currentCharacter.avatar_image} alt={currentCharacter.name} className="w-full h-full object-cover" />
+                ) : (
+                  currentCharacter.avatar
+                )}
+              </div>
               <h3 className="text-lg font-medium text-gray-600">{currentCharacter.name}</h3>
               <p className="text-gray-400 mt-1">{currentCharacter.greeting || '开始聊天吧~'}</p>
             </div>
           )}
 
           {messages.map((msg) => (
-            <ChatBubble key={msg.id} message={msg} characterAvatar={currentCharacter?.avatar} />
+            <ChatBubble key={msg.id} message={msg} character={currentCharacter} />
           ))}
 
           {isStreaming && messages[messages.length - 1]?.content === '' && (

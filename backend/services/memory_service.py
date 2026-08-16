@@ -1,5 +1,6 @@
 """记忆服务：关键词提取 + 向量检索"""
 
+import hashlib
 import re
 import numpy as np
 from sqlalchemy.orm import Session
@@ -33,6 +34,16 @@ def _cosine_similarity(v1: list, v2: list) -> float:
     return float(np.dot(a, b) / (norm_a * norm_b))
 
 
+def _stable_hash(token: str) -> int:
+    """跨进程稳定的字符串哈希。
+
+    注意：Python 内置 hash() 受 PYTHONHASHSEED 影响，每次进程启动都不同，
+    会导致重启后旧向量与新向量无法比较。这里改用 MD5 保证长期稳定。
+    """
+    digest = hashlib.md5(token.encode("utf-8")).hexdigest()
+    return int(digest[:16], 16)
+
+
 def _text_to_keyword_vector(text: str, dimension: int = 128) -> list:
     """
     将文本转为伪向量（基于关键词哈希）。
@@ -42,7 +53,7 @@ def _text_to_keyword_vector(text: str, dimension: int = 128) -> list:
     tokens = _simple_tokenize(text)
     vec = np.zeros(dimension)
     for token in tokens:
-        h = hash(token) % dimension
+        h = _stable_hash(token) % dimension
         vec[h] += 1.0
     # 归一化
     norm = np.linalg.norm(vec)

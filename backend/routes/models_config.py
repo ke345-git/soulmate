@@ -35,6 +35,7 @@ class ModelUpdate(BaseModel):
     max_tokens: int | None = None
     temperature: float | None = None
     top_p: float | None = None
+    last_test_result: str | None = None
 
 
 class TestRequest(BaseModel):
@@ -45,6 +46,15 @@ class TestRequest(BaseModel):
 
 
 # --- Routes ---
+@router.get("/presets")
+def list_presets():
+    """获取公益站 / 免费接口预设（一键填充）"""
+    from services.public_endpoints import get_public_presets
+
+    presets = get_public_presets()
+    return {"presets": presets, "total": len(presets)}
+
+
 @router.get("")
 def list_models(
     current_user: User = Depends(get_current_user),

@@ -1,0 +1,182 @@
+[
+  {
+    "id": "catgirl",
+    "name": "猫娘",
+    "emoji": "🐱",
+    "path": "/portraits/catgirl.svg"
+  },
+  {
+    "id": "elf",
+    "name": "精灵王子",
+    "emoji": "🏹",
+    "path": "/portraits/elf.svg"
+  },
+  {
+    "id": "extra-ava",
+    "name": "扁平插画",
+    "emoji": "🖼️",
+    "path": "/portraits/extra-ava.svg"
+  },
+  {
+    "id": "extra-bear",
+    "name": "大耳朵伙伴",
+    "emoji": "🐻",
+    "path": "/portraits/extra-bear.svg"
+  },
+  {
+    "id": "extra-luna",
+    "name": "月夜少女",
+    "emoji": "🌙",
+    "path": "/portraits/extra-luna.svg"
+  },
+  {
+    "id": "extra-mage",
+    "name": "魔法少女",
+    "emoji": "🔮",
+    "path": "/portraits/extra-mage.svg"
+  },
+  {
+    "id": "extra-melody",
+    "name": "音乐少女",
+    "emoji": "🎵",
+    "path": "/portraits/extra-melody.svg"
+  },
+  {
+    "id": "extra-nova",
+    "name": "极简主义",
+    "emoji": "🎨",
+    "path": "/portraits/extra-nova.svg"
+  },
+  {
+    "id": "extra-peep",
+    "name": "手绘伙伴",
+    "emoji": "✏️",
+    "path": "/portraits/extra-peep.svg"
+  },
+  {
+    "id": "extra-pixel",
+    "name": "像素冒险家",
+    "emoji": "🕹️",
+    "path": "/portraits/extra-pixel.svg"
+  },
+  {
+    "id": "extra-robin",
+    "name": "阳光少年",
+    "emoji": "⚡",
+    "path": "/portraits/extra-robin.svg"
+  },
+  {
+    "id": "extra-unit",
+    "name": "机器人二号",
+    "emoji": "⚙️",
+    "path": "/portraits/extra-unit.svg"
+  },
+  {
+    "id": "healing",
+    "name": "治愈花店",
+    "emoji": "🌸",
+    "path": "/portraits/healing.svg"
+  },
+  {
+    "id": "nurse",
+    "name": "温柔护士",
+    "emoji": "💉",
+    "path": "/portraits/nurse.svg"
+  },
+  {
+    "id": "ojou",
+    "name": "优雅御姐",
+    "emoji": "👑",
+    "path": "/portraits/ojou.svg"
+  },
+  {
+    "id": "ojousama",
+    "name": "名门大小姐",
+    "emoji": "❄️",
+    "path": "/portraits/ojousama.svg"
+  },
+  {
+    "id": "preset-athena",
+    "name": "智慧女神",
+    "emoji": "🦉",
+    "path": "/portraits/preset-athena.svg"
+  },
+  {
+    "id": "preset-baiqi",
+    "name": "霸道总裁",
+    "emoji": "👔",
+    "path": "/portraits/preset-baiqi.svg"
+  },
+  {
+    "id": "preset-huayin",
+    "name": "音乐少女",
+    "emoji": "🎵",
+    "path": "/portraits/preset-huayin.svg"
+  },
+  {
+    "id": "preset-laochen",
+    "name": "茶馆大叔",
+    "emoji": "🍵",
+    "path": "/portraits/preset-laochen.svg"
+  },
+  {
+    "id": "preset-qingfeng",
+    "name": "修仙道者",
+    "emoji": "🏔️",
+    "path": "/portraits/preset-qingfeng.svg"
+  },
+  {
+    "id": "preset-xialuo",
+    "name": "元气学妹",
+    "emoji": "🎀",
+    "path": "/portraits/preset-xialuo.svg"
+  },
+  {
+    "id": "preset-xiaozhi",
+    "name": "邻家弟弟",
+    "emoji": "⚡",
+    "path": "/portraits/preset-xiaozhi.svg"
+  },
+  {
+    "id": "preset-ye",
+    "name": "完美执事",
+    "emoji": "🎩",
+    "path": "/portraits/preset-ye.svg"
+  },
+  {
+    "id": "robot",
+    "name": "仿生人",
+    "emoji": "🤖",
+    "path": "/portraits/robot.svg"
+  },
+  {
+    "id": "scientist",
+    "name": "理工博士",
+    "emoji": "🔬",
+    "path": "/portraits/scientist.svg"
+  },
+  {
+    "id": "vampire",
+    "name": "吸血鬼贵族",
+    "emoji": "🦇",
+    "path": "/portraits/vampire.svg"
+  },
+  {
+    "id": "xuejie",
+    "name": "温柔学姐",
+    "emoji": "📚",
+    "path": "/portraits/xuejie.svg"
+  },
+  {
+    "id": "yandere",
+    "name": "病娇妹妹",
+    "emoji": "🖤",
+    "path": "/portraits/yandere.svg"
+  },
+  {
+    "id": "yuanqi",
+    "name": "元气少女",
+    "emoji": "✨",
+    "path": "/portraits/yuanqi.svg"
+  }
+]

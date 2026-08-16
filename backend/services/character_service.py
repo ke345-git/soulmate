@@ -1,6 +1,8 @@
-"""角色服务：创建角色 + 预设角色库"""
+"""角色服务：创建角色 + 预设角色库 + 文本提取（聊天记录/小说）"""
 
 import json
+import re
+from collections import Counter
 from sqlalchemy.orm import Session
 from models.character import Character
 
@@ -249,9 +251,39 @@ PRESET_CHARACTERS = [
 ]
 
 
+# 预设角色 → 内置立绘映射（见 scripts/download_portraits.py）
+PRESET_AVATAR_MAP = {
+    "preset-01": "/portraits/xuejie.svg",          # 林悦瑶 · 温柔学姐
+    "preset-02": "/portraits/yuanqi.svg",          # 星野光 · 元气少女
+    "preset-03": "/portraits/vampire.svg",         # 莉莉丝 · 吸血鬼贵族
+    "preset-04": "/portraits/scientist.svg",       # 陈默 · 理工博士
+    "preset-05": "/portraits/healing.svg",         # 小樱 · 治愈花店
+    "preset-06": "/portraits/preset-baiqi.svg",    # 白起 · 霸道总裁
+    "preset-07": "/portraits/ojousama.svg",        # 雪之下雪乃 · 名门大小姐
+    "preset-08": "/portraits/preset-ye.svg",       # 夜 · 完美执事
+    "preset-09": "/portraits/catgirl.svg",         # 喵喵 · 猫娘
+    "preset-10": "/portraits/elf.svg",             # 艾伦 · 精灵王子
+    "preset-11": "/portraits/preset-xialuo.svg",   # 夏洛特 · 元气学妹
+    "preset-12": "/portraits/ojou.svg",            # 维多利亚 · 优雅御姐
+    "preset-13": "/portraits/preset-xiaozhi.svg",  # 小智 · 邻家弟弟
+    "preset-14": "/portraits/preset-laochen.svg",  # 老陈 · 茶馆大叔
+    "preset-15": "/portraits/preset-athena.svg",   # 雅典娜 · 智慧女神
+    "preset-16": "/portraits/robot.svg",           # 零 · 仿生人
+    "preset-17": "/portraits/preset-huayin.svg",   # 花音 · 音乐少女
+    "preset-18": "/portraits/yandere.svg",         # 暗 · 病娇妹妹
+    "preset-19": "/portraits/preset-qingfeng.svg", # 清风 · 修仙道者
+    "preset-20": "/portraits/nurse.svg",           # 娜娜 · 温柔护士
+}
+
+
 def get_preset_characters() -> list:
-    """获取所有预设角色"""
-    return [dict(c) for c in PRESET_CHARACTERS]
+    """获取所有预设角色（含内置立绘）"""
+    result = []
+    for c in PRESET_CHARACTERS:
+        d = dict(c)
+        d["avatar_image"] = PRESET_AVATAR_MAP.get(d["id"], "")
+        result.append(d)
+    return result
 
 
 def create_character_from_dict(
@@ -269,6 +301,7 @@ def create_character_from_dict(
         background=data.get("background", ""),
         style=data.get("style", ""),
         source_type=data.get("source_type", "custom"),
+        source_text=data.get("source_text", ""),
         greeting=data.get("greeting", "你好呀~"),
         is_preset=data.get("is_preset", 0),
     )
@@ -295,6 +328,7 @@ def init_default_characters(db: Session):
             user_id=None,  # 系统角色没有所有者
             name=data["name"],
             avatar=data["avatar"],
+            avatar_image=PRESET_AVATAR_MAP.get(data["id"], ""),
             system_prompt=data["system_prompt"],
             background=data["background"],
             style=data["style"],
@@ -307,3 +341,525 @@ def init_default_characters(db: Session):
         db.add(char)
 
     db.commit()
+
+
+def backfill_preset_avatars(db: Session):
+    """回填预设角色的立绘（老数据库升级用）"""
+    from models.character import Character
+
+    rows = db.query(Character).filter(
+        Character.is_preset == 1,
+        Character.avatar_image.in_(["", None]),
+    ).all()
+    for char in rows:
+        img = PRESET_AVATAR_MAP.get(char.id, "")
+        if img:
+            char.avatar_image = img
+    if rows:
+        db.commit()
+
+
+# ════════════════════════════════════════════════════════════════
+# 文本提取：从聊天记录 / 小说中自动构建角色
+# ════════════════════════════════════════════════════════════════
+
+# 中文人名/说话人提取的「说」类动词
+_SPEAK_VERBS = (
+    "说道|说|道|问道|答道|喊道|笑道|哭道|叹道|惊道|低声道|轻声道|"
+    "大声道|重复道|打断道|应道|接口|开口|回答|问|答|补充道|"
+    "解释道|提醒道|温柔地说|笑着说|认真地说|冷冷地说|轻声说|继续说"
+)
+
+# 常见误判为名字的词（语气词/代词/虚词）
+_NAME_STOPWORDS = {
+    "我", "你", "他", "她", "它", "我们", "你们", "他们", "她们", "它们",
+    "自己", "大家", "人家", "别人", "本人", "这个", "那个", "什么", "怎么",
+    "这么", "那么", "哪里", "这里", "那里", "现在", "时候", "知道", "觉得",
+    "感觉", "没有", "就是", "不是", "但是", "只是", "还是", "因为", "所以",
+    "如果", "虽然", "然后", "而且", "或者", "不过", "其实", "一直", "一起",
+    "一下", "一边", "有点", "有些", "真的", "非常", "已经", "突然", "终于",
+    "赶紧", "连忙", "随后", "接着", "于是", "只见", "可是", "然而", "即便",
+    "声音", "语气", "表情", "眼睛", "心里", "心中", "脑海", "瞬间", "片刻",
+    "一时", "半晌", "沉默", "回头", "转身", "点头", "摇头", "起来", "出来",
+    "下来", "过来", "过去", "回去", "进来", "出去", "再说", "说话", "开口道",
+}
+
+# 说话方式副词（「低声说」「笑着说」等，应属于动词部分而非名字）
+_MANNER_WORDS = {
+    "低声", "轻声", "大声", "小声", "笑着", "哭着", "淡淡", "缓缓", "慢慢",
+    "悄悄", "静静", "默默", "喃喃", "连忙", "赶紧", "急忙", "冷冷", "温柔",
+    "认真", "高兴", "兴奋", "激动", "平静", "严肃", "随口", "幽幽", "坚定",
+    "犹豫", "轻轻", "狠狠", "甜甜", "害羞", "无奈", "苦笑", "嗤笑", "冷笑",
+    "轻笑", "笑道", "哭道", "喊", "叫", "问", "答",
+}
+
+
+def _clean_name(raw: str) -> str:
+    """清理提取出的名字片段"""
+    name = raw
+    for suf in ("说道", "说着", "说", "道", "问", "答", "喊道", "笑道"):
+        name = name.replace(suf, "")
+    name = name.strip("：:，,。.！!？?「」『』“”\"'…· ")
+    return name
+
+
+def _is_plausible_name(name: str, strict: bool = False) -> bool:
+    """判断片段是否像人名"""
+    if not name or len(name) < 2 or len(name) > 6:
+        return False
+    if name in _NAME_STOPWORDS:
+        return False
+    # 含说类动词或方式副词的，不是纯名字
+    if re.search(r"(?:说道|说着|说|道|问|答|喊|叫|笑道|低声|轻声|大声|小声|"
+                 r"抬头|回头|转身|点头|摇头|开口|笑着|哭着|轻轻|缓缓|淡淡)", name):
+        return False
+    if any(w in name for w in ("只见", "大家", "这个", "那个", "自己", "心里", "心中",
+                               "脑海", "然后", "于是", "可是", "然而", "还是", "就是",
+                               "没有", "知道", "觉得", "感觉", "现在", "时候")):
+        return False
+    if strict and len(name) not in (2, 3, 4):
+        return False
+    return True
+
+
+def _attribute_from_prefix(prefix: str) -> str:
+    """从引号前的文本解析说话人"""
+    # 方式1：……名字[描述]，[方式副词]说类动词 + 标点 结尾
+    verb_m = re.search(
+        r"((?:" + "|".join(sorted(_MANNER_WORDS, key=len, reverse=True)) + r")?"
+        r"(?:" + _SPEAK_VERBS + r"))[：:，,\s。！？!?]*$",
+        prefix,
+    )
+    if verb_m:
+        before = prefix[: verb_m.start()]
+        runs = re.findall(r"[\u4e00-\u9fa5A-Za-z·]+", before)
+        if runs:
+            token = runs[-1]
+            # 若最后一串是方式副词（如「低声」），往更前取
+            while token in _MANNER_WORDS and len(runs) >= 2:
+                runs.pop()
+                token = runs[-1]
+            # 长串 = 名字+描述，取前缀中最像名字的 2-3 字
+            for L in (3, 2):
+                if len(token) >= L:
+                    cand = token[:L]
+                    if _is_plausible_name(cand):
+                        return cand
+            if _is_plausible_name(token, strict=False):
+                return token
+
+    # 方式2：名字 + 短描述 + 冒号（如「林晚晚抬头，眼中闪着光：」）
+    m2 = re.search(r"([\u4e00-\u9fa5A-Za-z·]{2,6})([^：:\n]{0,14}[：:])$", prefix)
+    if m2:
+        name = _clean_name(m2.group(1))
+        between = m2.group(2)
+        if len(between) <= 15:
+            # 名字部分可能含短描述，交给上层用 startswith 匹配
+            return name
+    return ""
+
+
+# 常见单字动作动词（用于排除「名字+动作」误并）
+_ACTION_CHARS = set(
+    "扯拉抓拍摸指点抬低笑哭喊叫走跑站坐看望听说问答转回摇头叹皱瞪眯瞥眨哼嗯哦啊举握推敲打骂斥笑骂"
+)
+
+
+def _attribute_from_suffix(text: str, quote_end: int) -> str:
+    """从引号后的文本解析说话人（「台词」名字说道）"""
+    suffix = text[quote_end : quote_end + 60]
+    m0 = re.match(r"^[，,。.；;！!？?\s]*", suffix)
+    after_punct = suffix[m0.end() :] if m0 else suffix
+
+    # 名字段 = 动词前的最短 CJK 串（非贪婪 + 前瞻动词，动词不会被吞进名字）
+    verb_after = (
+        r"(?:(?:低声|轻声|大声|小声|笑着|哭着|淡淡|缓缓|慢慢|悄悄|静静|默默|喃喃|"
+        r"连忙|赶紧|急忙|冷冷|温柔|认真|高兴|兴奋|激动|平静|严肃|随口|幽幽|坚定|犹豫|"
+        r"轻轻|狠狠|甜甜|害羞|无奈|苦笑|嗤笑|冷笑|轻笑|抬头|低头|回头|转身|想了想|沉默片刻)(?:的|地)?)?"
+        r"(?:" + _SPEAK_VERBS + r")"
+    )
+    run_m = re.match(r"([\u4e00-\u9fa5A-Za-z·]+?)(?=" + verb_after + r")", after_punct)
+    if not run_m:
+        return ""
+    run = run_m.group(1)
+    rest = after_punct[run_m.end() :]
+    if not re.match(verb_after, rest):
+        return ""
+
+    # 名字取 run 的前 2-3 字（末字为动作动词则视为描述，往前缩）
+    name = None
+    for L in (3, 2):
+        if len(run) >= L:
+            cand = run[:L]
+            if _is_plausible_name(cand) and cand[-1] not in _ACTION_CHARS:
+                name = cand
+                break
+    if not name and len(run) >= 2 and _is_plausible_name(run[:2]):
+        name = run[:2]
+    return name or ""
+
+
+def _find_attributed_quotes(text: str) -> list:
+    """提取所有带说话人归属的台词，返回 [(speaker, content), ...]。
+
+    支持常见句式：
+    - 「XX说道：内容」「XX说：内容」「XX低声说：内容」
+    - 「XX抬头，眼中闪着光：内容」（名字 + 短描述 + 冒号）
+    - 「内容」XX说道（说话人在引号后）
+    """
+    result = []
+    quote_re = re.compile(r"[「“\"『](?P<content>[^」”\"』]{1,300})[」”\"』]")
+    for m in quote_re.finditer(text):
+        content = m.group("content").strip()
+        if not content:
+            continue
+        # 引号前（大窗口）
+        start = max(0, m.start() - 120)
+        speaker = _attribute_from_prefix(text[start : m.start()])
+        if not speaker:
+            # 引号后
+            speaker = _attribute_from_suffix(text, m.end())
+        if speaker:
+            result.append((speaker, content))
+    return result
+
+
+def extract_names_from_text(text: str, top_k: int = 10) -> list:
+    """从文本中提取候选人名（基于说话归属 + 前缀归并）"""
+    counter = Counter()
+    for speaker, _content in _find_attributed_quotes(text):
+        speaker = speaker.strip()
+        if not speaker:
+            continue
+        if len(speaker) >= 2:
+            counter[speaker] += 1
+            # 前缀归并：「林晚晚抬头」也为「林晚晚」「林晚」贡献计数
+            if len(speaker) > 3:
+                counter[speaker[:3]] += 1
+            if len(speaker) > 2:
+                counter[speaker[:2]] += 1
+
+    # 过滤 + 排序：频次降序，同频次优先更长的名字（「林晚晚」优于「林晚」）
+    ranked = []
+    for name, cnt in counter.items():
+        if not _is_plausible_name(name, strict=True):
+            continue
+        ranked.append((name, cnt))
+    ranked.sort(key=lambda x: (-x[1], -len(x[0]), x[0]))
+
+    result = []
+    for name, _cnt in ranked:
+        if name in result:
+            continue
+        # 若已有更完整的候选包含此名（如已选「林晚晚」则跳过「林晚」），避免冗余
+        if any(r != name and (r.startswith(name) or name in r) for r in result):
+            continue
+        result.append(name)
+        if len(result) >= top_k:
+            break
+    return result
+
+
+def pick_character_name(text: str, preferred: str | None = None) -> str:
+    """在候选名中选择角色名：优先用户指定，其次最高频"""
+    names = extract_names_from_text(text)
+    if not names:
+        return ""
+    if preferred:
+        # 优先完全匹配，其次包含匹配
+        for n in names:
+            if n == preferred:
+                return n
+        for n in names:
+            if preferred in n or n in preferred:
+                return n
+    return names[0]
+
+
+def _speaker_is(speaker: str, name: str) -> bool:
+    """判断提取的说话人是否为目标角色（容忍「名字+动作描述」被一起捕获）"""
+    return speaker == name or speaker.startswith(name) or name in speaker
+
+
+def extract_character_dialogues(text: str, name: str, max_lines: int = 12) -> list:
+    """提取指定角色的台词（含归属标记），支持「」「""」引号与 XX：内容 两种格式"""
+    lines = []
+    seen = set()
+
+    for speaker, content in _find_attributed_quotes(text):
+        if _speaker_is(speaker, name):
+            key = content[:50]
+            if key not in seen:
+                seen.add(key)
+                lines.append(content)
+
+    # 格式2：XX：内容（无引号，但排除误伤标题类行）
+    plain_re = re.compile(r"(?P<name>[\u4e00-\u9fa5A-Za-z·]{2,6})[：:](?P<content>[^\n「」\"']{2,200})")
+    for m in plain_re.finditer(text):
+        speaker = _clean_name(m.group("name"))
+        content = m.group("content").strip()
+        if _speaker_is(speaker, name) and content:
+            key = content[:50]
+            if key not in seen:
+                seen.add(key)
+                lines.append(content)
+    return lines[:max_lines]
+
+
+def _pair_dialogues(text: str, name: str, max_pairs: int = 8) -> list:
+    """为小说角色生成 (user, bot) 示例对话对：
+    取该角色的台词，向前找最近的其他角色台词作为 user 侧。"""
+    pairs = []
+    all_quotes = _find_attributed_quotes(text)
+
+    for i, (speaker, content) in enumerate(all_quotes):
+        if _speaker_is(speaker, name) and content:
+            prev_user = None
+            for j in range(i - 1, -1, -1):
+                if not _speaker_is(all_quotes[j][0], name) and all_quotes[j][1]:
+                    prev_user = all_quotes[j][1]
+                    break
+            if prev_user:
+                pairs.append({"user": prev_user, "bot": content})
+            if len(pairs) >= max_pairs:
+                break
+    return pairs
+
+
+# ── 说话风格分析 ──────────────────────────────────────────────
+_TRAIT_RULES = [
+    ("温柔", ["温柔", "轻声", "没关系", "别怕", "乖", "抱抱", "心疼", "没事的", "别难过"]),
+    ("元气", ["元气", "加油", "冲呀", "太棒了", "好耶", "嘻嘻", "耶", "！！！", "出发"]),
+    ("高冷", ["高冷", "冷漠", "无聊", "随便你", "懒得", "呵", "与我无关", "闭嘴"]),
+    ("傲娇", ["才不是", "才没有", "谁要", "哼", "笨蛋", "白痴", "只是…", "只是……", "并不是", "口是心非", "才不"]),
+    ("腹黑", ["呵呵", "您说呢", "笑而不语", "有意思", "让我猜猜"]),
+    ("毒舌", ["蠢", "废物", "垃圾", "智商", "没救", "幼稚", "可笑"]),
+    ("病娇", ["永远", "只属于", "不能离开", "别想逃", "杀掉", "只爱我", "都是我的", "再也不分开"]),
+    ("理性", ["逻辑", "根据", "数据", "分析", "概率", "理论上", "计算", "研究表明"]),
+    ("天然呆", ["啊咧", "诶？", "咦", "啊嘞", "慢半拍", "忘记了", "迷糊"]),
+    ("可爱", ["喵", "呀", "啦", "嘛", "呢", "呜", "软软"]),
+    ("霸道", ["不许", "必须", "我的人", "命令你", "听我的", "不准", "我罩着", "没人能"]),
+    ("文艺", ["诗", "月光", "风", "树叶", "像一首", "句子", "比喻", "远方"]),
+    ("神秘", ["秘密", "不能说", "缘分", "天机", "命运的", "预言"]),
+    ("治愈", ["会好起来的", "有我", "陪你", "加油", "抱抱", "太阳会", "明天会"]),
+    ("调皮", ["嘿嘿", "就不告诉你", "求我呀", "逗你", "嘻嘻"]),
+]
+
+_STYLE_RULES = [
+    (r"[~～]+", "喜欢在句尾用波浪线「~」"),
+    (r"(?:……|…){1,}", "说话常带省略号，语气含蓄"),
+    (r"！", "情绪饱满，常用感叹号"),
+    (r"？", "喜欢提问，互动感强"),
+    (r"喵", "带有「喵」的口癖"),
+    (r"[啦嘛呢哦呀吧]+\s*$", "句尾常带语气词，亲切自然"),
+    (r"(?:哈哈|嘻嘻|嘿嘿|呵呵)", "喜欢用笑声词"),
+    (r"(?:哦|嗯|啊|呃)+[，,。]?", "常有口头应和"),
+]
+
+
+def analyze_speaking_style(lines: list) -> tuple:
+    """分析台词，返回 (性格标签列表, 风格描述)"""
+    text = "\n".join(lines)
+    if not text.strip():
+        return [], "暂无足够文本分析"
+
+    scores = []
+    for trait, keywords in _TRAIT_RULES:
+        count = sum(text.count(kw) for kw in keywords)
+        if count > 0:
+            scores.append((trait, count))
+    scores.sort(key=lambda x: -x[1])
+    traits = [t for t, _c in scores[:4]]
+    if not traits:
+        traits = ["待定"]
+
+    styles = []
+    for pattern, desc in _STYLE_RULES:
+        if re.search(pattern, text):
+            if desc not in styles:
+                styles.append(desc)
+    if len(styles) >= 3:
+        styles = styles[:3]
+    style_desc = "；".join(styles) if styles else "语气自然，无明显特殊口癖"
+
+    return traits, style_desc
+
+
+def build_system_prompt(name: str, personality: list, style: str, sample_quotes: list, background: str = "") -> str:
+    """根据提取结果生成系统提示词"""
+    parts = [f"你是{name}。"]
+    if background:
+        parts.append(f"背景设定：{background}。")
+    if personality:
+        parts.append(f"性格特征：{'、'.join(personality)}。")
+    if style:
+        parts.append(f"说话风格：{style}。")
+    if sample_quotes:
+        quotes = "\n".join(f"「{q}」" for q in sample_quotes[:5])
+        parts.append(f"请严格模仿以下对话风格与语气：\n{quotes}")
+    parts.append("始终保持角色人设，用第一人称与用户自然交流，不要跳出角色。")
+    return "".join(parts)
+
+
+def _avatar_for_personality(personality: list) -> str:
+    """根据性格给一个合适的默认 emoji 头像"""
+    mapping = [
+        (("温柔", "治愈", "可爱"), "🌸"),
+        (("元气", "调皮"), "✨"),
+        (("高冷", "傲娇"), "❄️"),
+        (("病娇", "霸道"), "🖤"),
+        (("腹黑", "神秘"), "🎭"),
+        (("理性",), "🤖"),
+        (("文艺",), "📖"),
+    ]
+    for keys, emoji in mapping:
+        if any(k in personality for k in keys):
+            return emoji
+    return "💝"
+
+
+# ── 聊天记录导入 ──────────────────────────────────────────────
+def parse_chatlog_turns(text: str) -> list:
+    """解析聊天记录为 (说话人, 内容) 列表。支持：
+    - 名字：内容 / 名字: 内容
+    - 名字说：内容 / 名字说道：内容 / 名字 说：内容
+    - 【名字】内容 / [名字] 内容
+    """
+    turns = []
+    line_re = re.compile(
+        r"^\s*(?:【(?P<b1>[^】]{1,20})】|\[(?P<b2>[^\]]{1,20})\]|(?P<b3>[^：:\n【】\[\]]{1,20}))"
+        r"(?:\s*(?:说道|说|道|问|答|喊道|笑道)[：:]?|[：:])\s*(?P<content>.+)$"
+    )
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        m = line_re.match(line)
+        if not m:
+            continue
+        speaker = m.group("b1") or m.group("b2") or m.group("b3") or ""
+        content = (m.group("content") or "").strip()
+        speaker = speaker.strip()
+        if not speaker or not content:
+            continue
+        # 跳过明显的时间戳/系统行
+        if re.match(r"^\d{4}[-/年]\d{1,2}", speaker):
+            continue
+        if speaker in ("系统消息", "系统", "提示", "管理员"):
+            continue
+        turns.append((speaker, content))
+    return turns
+
+
+def build_character_from_chatlog(
+    name: str,
+    chatlog_text: str,
+    user_label: str | None = None,
+) -> dict:
+    """从聊天记录构建角色草稿：
+    - 自动识别用户方（台词较少的一侧，或 user_label 指定）
+    - 提取示例对话、说话风格、性格标签
+    - 生成系统提示词与开场白
+    """
+    turns = parse_chatlog_turns(chatlog_text)
+    if not turns:
+        raise ValueError("未能从文本中识别出对话，请确认格式为「名字：内容」（一行一句）。")
+
+    speakers = Counter(s for s, _c in turns)
+    # 候选：出现次数较少的一方更可能是用户（导入者）
+    if user_label and user_label in speakers:
+        user_side = user_label
+    else:
+        # 少的一方为 user；平手取先开口者
+        least = min(speakers.values())
+        candidates = [s for s, c in speakers.items() if c == least]
+        if len(candidates) == 1:
+            user_side = candidates[0]
+        else:
+            user_side = turns[0][0]
+    bot_side = None
+    for s, c in speakers.most_common():
+        if s != user_side:
+            bot_side = s
+            break
+    if bot_side is None:
+        raise ValueError("对话中只有一个说话人，无法提取角色。")
+
+    bot_lines = [c for s, c in turns if s == bot_side]
+    personality, style = analyze_speaking_style(bot_lines)
+
+    # 示例对话：用户→角色 的相邻轮次
+    example_dialogues = []
+    for i in range(len(turns) - 1):
+        if turns[i][0] == user_side and turns[i + 1][0] == bot_side:
+            example_dialogues.append({"user": turns[i][1], "bot": turns[i + 1][1]})
+        if len(example_dialogues) >= 8:
+            break
+
+    greeting = bot_lines[0][:80] if bot_lines else "你好呀~"
+    background = f"由用户导入的一段真实聊天记录构建，说话风格基于「{bot_side}」的台词提取。"
+    system_prompt = build_system_prompt(
+        name, personality, style, [q for _u, q in example_dialogues[:5]] or bot_lines[:5], background
+    )
+
+    return {
+        "name": name or bot_side,
+        "avatar": _avatar_for_personality(personality),
+        "avatar_image": "",
+        "system_prompt": system_prompt,
+        "personality": personality,
+        "background": background,
+        "style": style,
+        "example_dialogues": example_dialogues,
+        "greeting": greeting,
+        "source_type": "chatlog",
+        "source_text": chatlog_text[:10000],
+        "is_preset": 0,
+    }
+
+
+# ── 小说导入 ──────────────────────────────────────────────────
+def build_character_from_novel(
+    text: str,
+    character_name: str | None = None,
+) -> dict:
+    """从小说文本构建角色草稿：
+    - 正则提取高频说话人作为候选角色
+    - 提取该角色台词 → 分析性格/风格
+    - 生成系统提示词、示例对话、开场白
+    """
+    if not text or len(text.strip()) < 30:
+        raise ValueError("文本太短，请至少粘贴 30 字以上的小说内容或梗概。")
+
+    name = pick_character_name(text, character_name)
+    if not name:
+        raise ValueError("未能识别出说话人，请确认文本包含类似「XX说：…」的对话，或手动指定角色名。")
+
+    lines = extract_character_dialogues(text, name)
+    if not lines:
+        raise ValueError(f"未找到「{name}」的台词，请确认原文包含该角色的对话。")
+
+    # 性格：结合台词 + 开头旁白（旁白常直接描写人物性格）
+    traits, _ = analyze_speaking_style([text[:400], *[f"「{l}」" for l in lines]])
+    _, style = analyze_speaking_style(lines)
+    personality = traits
+    example_dialogues = _pair_dialogues(text, name)
+
+    greeting = lines[0][:80]
+    background = "由小说文本提取的角色。" + ("（用户提供了角色名偏好）" if character_name else "")
+    system_prompt = build_system_prompt(name, personality, style, lines, background)
+
+    return {
+        "name": name,
+        "avatar": _avatar_for_personality(personality),
+        "avatar_image": "",
+        "system_prompt": system_prompt,
+        "personality": personality,
+        "background": background,
+        "style": style,
+        "example_dialogues": example_dialogues,
+        "greeting": greeting,
+        "source_type": "novel",
+        "source_text": text[:10000],
+        "is_preset": 0,
+    }

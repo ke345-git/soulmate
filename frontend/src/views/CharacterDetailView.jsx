@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MessageCircle, Pencil, Trash2, Upload } from 'lucide-react'
+import { ArrowLeft, MessageCircle, Pencil, Trash2, Upload, Wand2, Loader2, FileText, BookOpenText } from 'lucide-react'
 import useCharacterStore from '@/stores/characterStore'
 import useChatStore from '@/stores/chatStore'
 import api from '@/lib/api'
+import CharacterCreateDialog from '@/components/CharacterCreateDialog'
 
 export default function CharacterDetailView() {
   const { id } = useParams()
@@ -13,6 +14,9 @@ export default function CharacterDetailView() {
   const [character, setCharacter] = useState(null)
   const [loading, setLoading] = useState(true)
   const [avatarImage, setAvatarImage] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [genError, setGenError] = useState('')
+  const [showEdit, setShowEdit] = useState(false)
 
   useEffect(() => {
     loadCharacter()
@@ -61,10 +65,40 @@ export default function CharacterDetailView() {
       })
       if (res.ok) {
         await loadCharacter()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert(data.detail || '上传失败')
       }
     } catch (err) {
       alert('上传失败')
     }
+  }
+
+  /** AI 抽卡：生成专属立绘 */
+  const handleGeneratePortrait = async () => {
+    if (!confirm('将调用 gpt-image-1 生成角色立绘（需已配置 OpenAI Key），可能耗时 30 秒左右，继续？')) return
+    setGenerating(true)
+    setGenError('')
+    try {
+      const token = localStorage.getItem('soulmate_token')
+      const res = await fetch(`/api/characters/${id}/generate-portrait`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        await loadCharacter()
+      } else {
+        setGenError(data.detail || '生成失败')
+      }
+    } catch (err) {
+      setGenError('网络错误，请重试')
+    }
+    setGenerating(false)
   }
 
   if (loading) {
@@ -146,7 +180,7 @@ export default function CharacterDetailView() {
             <p className="text-gray-500">{character.background}</p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               onClick={handleStartChat}
               className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-rose-400 to-warmth-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
@@ -157,6 +191,22 @@ export default function CharacterDetailView() {
             {!character.is_preset && (
               <>
                 <button
+                  onClick={() => setShowEdit(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white/70 text-gray-600 rounded-xl font-medium hover:bg-white transition-all"
+                >
+                  <Pencil className="w-4 h-4" />
+                  编辑
+                </button>
+                <button
+                  onClick={handleGeneratePortrait}
+                  disabled={generating}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white/70 text-purple-500 rounded-xl font-medium hover:bg-white transition-all disabled:opacity-50"
+                  title="调用 gpt-image-1 生成专属立绘"
+                >
+                  {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                  {generating ? '生成中...' : 'AI 立绘'}
+                </button>
+                <button
                   onClick={handleDelete}
                   className="p-2.5 bg-white/70 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl transition-all"
                 >
@@ -166,6 +216,15 @@ export default function CharacterDetailView() {
             )}
           </div>
         </div>
+
+        {/* 生成失败提示 */}
+        {genError && (
+          <div className="px-8 pb-4">
+            <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">
+              AI 立绘生成失败：{genError}
+            </div>
+          </div>
+        )}
 
         {/* 角色详情 */}
         <div className="p-8 space-y-6">
@@ -214,8 +273,38 @@ export default function CharacterDetailView() {
               此角色由系统提供
             </div>
           )}
+
+          {!character.is_preset && character.source_type === 'novel' && (
+            <div className="flex items-center gap-2 text-sm text-gray-300">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-500 rounded-full text-xs">
+                <BookOpenText className="w-3 h-3" /> 小说导入
+              </span>
+              由小说文本自动提取
+            </div>
+          )}
+
+          {!character.is_preset && character.source_type === 'chatlog' && (
+            <div className="flex items-center gap-2 text-sm text-gray-300">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-500 rounded-full text-xs">
+                <FileText className="w-3 h-3" /> 聊天记录导入
+              </span>
+              由聊天记录自动提取
+            </div>
+          )}
         </div>
       </div>
+
+      {/* 编辑角色 */}
+      {showEdit && (
+        <CharacterCreateDialog
+          initial={character}
+          onClose={() => setShowEdit(false)}
+          onCreated={() => {
+            setShowEdit(false)
+            loadCharacter()
+          }}
+        />
+      )}
     </div>
   )
 }

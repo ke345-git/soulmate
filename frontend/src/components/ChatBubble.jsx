@@ -2,9 +2,10 @@ import { cn } from '@/lib/utils'
 import { Copy, Check } from 'lucide-react'
 import { useState } from 'react'
 
-export default function ChatBubble({ message, characterAvatar }) {
+export default function ChatBubble({ message, character }) {
   const [copied, setCopied] = useState(false)
   const isUser = message.role === 'user'
+  const charAvatar = character?.avatar_image || character?.avatar || '🤖'
 
   const handleCopy = async () => {
     try {
@@ -33,8 +34,12 @@ export default function ChatBubble({ message, characterAvatar }) {
     >
       {/* AI 头像 */}
       {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-warmth-300 to-rose-300 flex items-center justify-center flex-shrink-0 text-lg shadow-sm">
-          {characterAvatar || '🤖'}
+        <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-warmth-300 to-rose-300 flex items-center justify-center flex-shrink-0 text-lg shadow-sm">
+          {character?.avatar_image ? (
+            <img src={character.avatar_image} alt="" className="w-full h-full object-cover" />
+          ) : (
+            charAvatar
+          )}
         </div>
       )}
 

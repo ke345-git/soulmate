@@ -112,7 +112,13 @@ const useChatStore = create((set, get) => ({
                 newSessionId = data.session_id
                 messageId = data.message_id
               } else if (data.type === 'error') {
-                set({ error: data.message })
+                // 服务端返回错误：移除空的 AI 占位气泡并展示错误
+                set((state) => ({
+                  error: data.message,
+                  messages: state.messages.filter(
+                    (m) => !(m.role === 'assistant' && m.id.startsWith('temp-ai-'))
+                  ),
+                }))
               }
             } catch (e) {
               // 忽略解析错误

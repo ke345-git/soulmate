@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, CheckCircle, XCircle, Zap, Globe, Cpu } from 'lucide-react'
+import { Plus, Trash2, CheckCircle, XCircle, Zap, Globe, Cpu, Sparkles } from 'lucide-react'
 import useModelStore from '@/stores/modelStore'
+import api from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 const PROVIDER_ICONS = {
@@ -25,6 +26,8 @@ export default function ModelConfigView() {
   const [editingModel, setEditingModel] = useState(null)
   const [testingId, setTestingId] = useState(null)
   const [testResults, setTestResults] = useState({})  // { [modelId]: {success, message} }
+  const [presets, setPresets] = useState([])  // 公益站/免费接口预设
+  const [showPresets, setShowPresets] = useState(false)
 
   const [form, setForm] = useState({
     name: '',
@@ -39,6 +42,10 @@ export default function ModelConfigView() {
 
   useEffect(() => {
     fetchModels()
+    // 拉取公益站/免费接口预设
+    api.get('/models/presets')
+      .then((res) => setPresets(res.data.presets || []))
+      .catch(() => {})
   }, [])
 
   const resetForm = () => {
@@ -79,7 +86,24 @@ export default function ModelConfigView() {
       temperature: model.temperature,
     })
     setShowForm(true)
-    setTestResult(null)
+    setTestResults({})
+  }
+
+  /** 一键填充公益站/免费接口预设 */
+  const handleUsePreset = (preset) => {
+    setEditingModel(null)
+    setForm({
+      name: preset.name,
+      provider: preset.provider,
+      api_key: '',
+      base_url: preset.base_url,
+      model: preset.model,
+      is_active: false,
+      max_tokens: 4096,
+      temperature: 0.7,
+    })
+    setShowForm(true)
+    setShowPresets(false)
   }
 
   const handleSubmit = async () => {
@@ -133,6 +157,50 @@ export default function ModelConfigView() {
           添加模型
         </button>
       </div>
+
+      {/* 公益站 / 免费接口预设 */}
+      {presets.length > 0 && (
+        <div className="glass rounded-2xl mb-6 overflow-hidden">
+          <button
+            onClick={() => setShowPresets(!showPresets)}
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-warmth-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div className="text-left">
+                <h3 className="font-semibold text-gray-700 text-sm">公益站 / 免费接口预设</h3>
+                <p className="text-xs text-gray-400">
+                  一键填充常用服务商（含免费额度，政策以官网为准），填入 Key 即可使用
+                </p>
+              </div>
+            </div>
+            <span className={cn('text-gray-300 transition-transform', showPresets && 'rotate-180')}>▼</span>
+          </button>
+
+          {showPresets && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 border-t border-warmth-100">
+              {presets.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleUsePreset(p)}
+                  className="text-left p-3 rounded-xl border border-warmth-200 hover:border-rose-300 hover:bg-rose-50/50 transition-all group"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-gray-700">{p.name}</span>
+                    {p.is_free && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full">免费</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 leading-relaxed">{p.description}</p>
+                  <p className="text-[11px] text-gray-300 mt-1 font-mono truncate">{p.base_url}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 模型列表 */}
       {isLoading ? (
@@ -192,7 +260,11 @@ export default function ModelConfigView() {
                         : 'bg-gray-50 text-gray-400'
                     )}
                   >
-                    {model.last_test_result === 'online' ? '在线' : '未知'}
+                    {model.last_test_result === 'online'
+                      ? '在线'
+                      : model.last_test_result === 'offline'
+                      ? '离线'
+                      : '未知'}
                   </span>
                 </div>
               </div>

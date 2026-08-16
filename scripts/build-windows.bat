@@ -29,6 +29,7 @@ cd /d "%~dp0..\backend"
 pip install pyinstaller -q
 pyinstaller --onefile --name SoulMate ^
     --add-data "static;static" ^
+    --add-data "portraits;portraits" ^
     --add-data "services;services" ^
     --add-data "routes;routes" ^
     --add-data "models;models" ^

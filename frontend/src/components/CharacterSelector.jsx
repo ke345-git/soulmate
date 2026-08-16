@@ -24,7 +24,11 @@ export default function CharacterSelector({ characters, selectedId, onSelect }) 
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-3 py-2 bg-white border border-warmth-200 rounded-xl text-sm hover:border-rose-300 transition-colors"
       >
-        <span className="text-lg">{selected?.avatar || '😊'}</span>
+        {selected?.avatar_image ? (
+          <img src={selected.avatar_image} alt="" className="w-6 h-6 rounded-lg object-cover" />
+        ) : (
+          <span className="text-lg">{selected?.avatar || '😊'}</span>
+        )}
         <span className="text-gray-700 font-medium">
           {selected?.name || '选择角色'}
         </span>
@@ -48,7 +52,11 @@ export default function CharacterSelector({ characters, selectedId, onSelect }) 
                     : 'hover:bg-warmth-50'
                 )}
               >
-                <span className="text-2xl">{char.avatar}</span>
+                {char.avatar_image ? (
+                  <img src={char.avatar_image} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
+                ) : (
+                  <span className="text-2xl">{char.avatar}</span>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-700">{char.name}</p>
                   <div className="flex gap-1 mt-0.5">

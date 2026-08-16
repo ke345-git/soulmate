@@ -61,5 +61,9 @@ def init_db():
             # 初始化默认角色
             from services.character_service import init_default_characters
             init_default_characters(db)
+
+        # 回填预设角色立绘（老数据库升级）
+        from services.character_service import backfill_preset_avatars
+        backfill_preset_avatars(db)
     finally:
         db.close()

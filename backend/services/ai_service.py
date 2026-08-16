@@ -159,3 +159,52 @@ async def test_model_connection(
                 return resp.status_code == 200
     except Exception:
         return False
+
+
+async def generate_portrait_image(
+    api_key: str,
+    model: str = "gpt-image-1",
+    prompt: str = "",
+    size: str = "1024x1024",
+) -> str:
+    """
+    调用 OpenAI 兼容的图像生成接口（gpt-image-1 / dall-e-3）生成立绘。
+    返回 data URL（base64），失败抛异常。
+    """
+    url = "https://api.openai.com/v1/images/generations"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    body: dict = {
+        "model": model,
+        "prompt": prompt,
+        "n": 1,
+        "size": size,
+    }
+    # dall-e-3 支持 b64_json；gpt-image-1 默认返回 b64_json
+    if model.startswith("dall-e"):
+        body["response_format"] = "b64_json"
+
+    async with httpx.AsyncClient(timeout=180.0) as client:
+        resp = await client.post(url, headers=headers, json=body)
+        resp.raise_for_status()
+        data = resp.json()
+
+    items = data.get("data") or []
+    if not items:
+        raise ValueError("接口返回为空")
+    item = items[0]
+    if item.get("b64_json"):
+        return f"data:image/png;base64,{item['b64_json']}"
+    if item.get("url"):
+        # 下载 URL 形式的结果（dall-e-3 默认）
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            img_resp = await client.get(item["url"])
+            img_resp.raise_for_status()
+            import base64
+
+            b64 = base64.b64encode(img_resp.content).decode("utf-8")
+            ctype = img_resp.headers.get("content-type", "image/png")
+            return f"data:{ctype};base64,{b64}"
+    raise ValueError("接口未返回图片数据")
