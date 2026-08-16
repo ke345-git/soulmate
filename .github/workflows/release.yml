@@ -349,6 +349,8 @@ jobs:
         uses: actions/download-artifact@v4.1.8
         with:
           path: artifacts
+          # 只下载 4 个发布产物；docker buildx 的元数据产物（*.dockerbuild）损坏会导致整体下载失败
+          pattern: 'SoulMate-*'
 
       - name: Show Artifacts
         run: find artifacts -type f
