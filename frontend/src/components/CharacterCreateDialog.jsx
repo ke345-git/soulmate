@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Plus, Minus, Image as ImageIcon } from 'lucide-react'
 import useCharacterStore from '@/stores/characterStore'
 import { cn } from '@/lib/utils'
+import { resolveAssetUrl } from '@/lib/api'
 
 const EMOJI_OPTIONS = ['😊', '🌸', '✨', '🌟', '🦇', '🔬', '❄️', '🐱', '🏹', '👑', '🤖', '🖤', '💉', '🎀', '🎭', '📚', '💝', '🌙']
 
@@ -48,7 +49,7 @@ export default function CharacterCreateDialog({ initial = null, onClose, onCreat
 
   // 拉取内置立绘清单
   useEffect(() => {
-    fetch('/portraits/manifest.json')
+    fetch(resolveAssetUrl('/portraits/manifest.json'))
       .then((r) => (r.ok ? r.json() : []))
       .then((list) => setPortraits(Array.isArray(list) ? list : []))
       .catch(() => setPortraits([]))
@@ -132,7 +133,7 @@ export default function CharacterCreateDialog({ initial = null, onClose, onCreat
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white shadow-sm flex items-center justify-center text-4xl flex-shrink-0">
                 {form.avatar_image ? (
-                  <img src={form.avatar_image} alt="立绘" className="w-full h-full object-cover" />
+                  <img src={resolveAssetUrl(form.avatar_image)} alt="立绘" className="w-full h-full object-cover" />
                 ) : (
                   form.avatar || '😊'
                 )}
@@ -180,7 +181,7 @@ export default function CharacterCreateDialog({ initial = null, onClose, onCreat
                       )}
                       title={p.name}
                     >
-                      <img src={p.path} alt={p.name} className="w-full aspect-square object-cover" />
+                      <img src={resolveAssetUrl(p.path)} alt={p.name} className="w-full aspect-square object-cover" />
                       <span className="block text-center text-[10px] text-gray-400 py-0.5 bg-white">
                         {p.name}
                       </span>

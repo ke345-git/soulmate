@@ -39,6 +39,7 @@ Section "Install"
   ; 创建启动脚本
   FileOpen $0 "$INSTDIR\启动SoulMate.bat" w
   FileWrite $0 "@echo off$\r$\n"
+  FileWrite $0 "chcp 65001 >nul$\r$\n"
   FileWrite $0 "echo 💝 SoulMate 启动中...$\r$\n"
   FileWrite $0 "echo 浏览器将自动打开 http://localhost:8000$\r$\n"
   FileWrite $0 "echo 请保持此窗口打开$\r$\n"
@@ -61,7 +62,7 @@ Section "Install"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "UninstallString" "$INSTDIR\uninstall.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "DisplayIcon" "$INSTDIR\SoulMate.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "Publisher" "SoulMate"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "DisplayVersion" "1.0.0"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "DisplayVersion" "1.1.1"
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "NoModify" 1
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "NoRepair" 1
 SectionEnd

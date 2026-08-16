@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { X, Wand2, MessageSquareText, BookOpenText, Loader2, Check, RefreshCw } from 'lucide-react'
-import api from '@/lib/api'
+import api, { resolveAssetUrl } from '@/lib/api'
 import useCharacterStore from '@/stores/characterStore'
 import { cn } from '@/lib/utils'
 
@@ -182,7 +182,7 @@ export default function CharacterImportDialog({ onClose, onCreated }) {
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl overflow-hidden bg-white flex items-center justify-center text-2xl shadow-sm">
                   {draft.avatar_image ? (
-                    <img src={draft.avatar_image} alt="" className="w-full h-full object-cover" />
+                    <img src={resolveAssetUrl(draft.avatar_image)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     draft.avatar || '✨'
                   )}

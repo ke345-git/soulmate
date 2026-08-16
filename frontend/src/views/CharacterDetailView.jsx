@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, MessageCircle, Pencil, Trash2, Upload, Wand2, Loader2, FileText, BookOpenText } from 'lucide-react'
 import useCharacterStore from '@/stores/characterStore'
 import useChatStore from '@/stores/chatStore'
-import api from '@/lib/api'
+import api, { resolveAssetUrl } from '@/lib/api'
 import CharacterCreateDialog from '@/components/CharacterCreateDialog'
 
 export default function CharacterDetailView() {
@@ -143,7 +143,7 @@ export default function CharacterDetailView() {
           <div className="relative group">
             {avatarImage ? (
               <img
-                src={avatarImage}
+                src={resolveAssetUrl(avatarImage)}
                 alt={character.name}
                 className="w-28 h-28 rounded-2xl object-cover shadow-lg"
               />

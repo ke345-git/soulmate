@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { resolveAssetUrl } from '@/lib/api'
 
 export default function CharacterSelector({ characters, selectedId, onSelect }) {
   const [open, setOpen] = useState(false)
@@ -25,7 +26,7 @@ export default function CharacterSelector({ characters, selectedId, onSelect }) 
         className="flex items-center gap-2 px-3 py-2 bg-white border border-warmth-200 rounded-xl text-sm hover:border-rose-300 transition-colors"
       >
         {selected?.avatar_image ? (
-          <img src={selected.avatar_image} alt="" className="w-6 h-6 rounded-lg object-cover" />
+          <img src={resolveAssetUrl(selected.avatar_image)} alt="" className="w-6 h-6 rounded-lg object-cover" />
         ) : (
           <span className="text-lg">{selected?.avatar || '😊'}</span>
         )}
@@ -53,7 +54,7 @@ export default function CharacterSelector({ characters, selectedId, onSelect }) 
                 )}
               >
                 {char.avatar_image ? (
-                  <img src={char.avatar_image} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
+                  <img src={resolveAssetUrl(char.avatar_image)} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
                 ) : (
                   <span className="text-2xl">{char.avatar}</span>
                 )}

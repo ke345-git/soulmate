@@ -9,6 +9,7 @@ import MemoryPanel from '@/components/MemoryPanel'
 import ModelSelector from '@/components/ModelSelector'
 import CharacterSelector from '@/components/CharacterSelector'
 import { cn } from '@/lib/utils'
+import { resolveAssetUrl } from '@/lib/api'
 
 export default function ChatView() {
   const { sessionId } = useParams()
@@ -130,7 +131,7 @@ export default function ChatView() {
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-warmth-100 transition-colors text-left"
                 >
                   {char.avatar_image ? (
-                    <img src={char.avatar_image} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
+                    <img src={resolveAssetUrl(char.avatar_image)} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
                   ) : (
                     <span className="text-2xl">{char.avatar}</span>
                   )}
@@ -178,7 +179,7 @@ export default function ChatView() {
                 )}
               >
                 {sChar?.avatar_image ? (
-                  <img src={sChar.avatar_image} alt="" className="w-8 h-8 rounded-xl object-cover flex-shrink-0" />
+                  <img src={resolveAssetUrl(sChar.avatar_image)} alt="" className="w-8 h-8 rounded-xl object-cover flex-shrink-0" />
                 ) : (
                   <span className="text-xl">{session.character_avatar}</span>
                 )}
@@ -252,7 +253,7 @@ export default function ChatView() {
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="w-20 h-20 rounded-3xl overflow-hidden flex items-center justify-center text-5xl mb-4 shadow-sm">
                 {currentCharacter.avatar_image ? (
-                  <img src={currentCharacter.avatar_image} alt={currentCharacter.name} className="w-full h-full object-cover" />
+                  <img src={resolveAssetUrl(currentCharacter.avatar_image)} alt={currentCharacter.name} className="w-full h-full object-cover" />
                 ) : (
                   currentCharacter.avatar
                 )}

@@ -1,5 +1,6 @@
 import { MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { resolveAssetUrl } from '@/lib/api'
 
 export default function CharacterCard({ character, onClick, onChat }) {
   const tags = (character.personality || []).slice(0, 3)
@@ -19,7 +20,7 @@ export default function CharacterCard({ character, onClick, onChat }) {
         )}>
           {character.avatar_image ? (
             <img
-              src={character.avatar_image}
+              src={resolveAssetUrl(character.avatar_image)}
               alt={character.name}
               className="w-full h-full rounded-2xl object-cover"
             />

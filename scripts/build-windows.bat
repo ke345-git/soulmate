@@ -59,6 +59,7 @@ copy .env.example release\SoulMate\
 REM 创建启动脚本
 (
 echo @echo off
+echo chcp 65001 ^>nul
 echo echo 💝 SoulMate 启动中...
 echo echo.
 echo echo 浏览器将自动打开 http://localhost:8000

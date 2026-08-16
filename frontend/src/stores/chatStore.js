@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import api from '@/lib/api'
+import api, { getApiBase } from '@/lib/api'
 
 const useChatStore = create((set, get) => ({
   sessions: [],
@@ -65,7 +65,7 @@ const useChatStore = create((set, get) => ({
 
     try {
       const token = localStorage.getItem('soulmate_token')
-      const response = await fetch('/api/chat/send', {
+      const response = await fetch(`${getApiBase()}/chat/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

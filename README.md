@@ -245,6 +245,16 @@ A：使用正则 + 关键词分析（无需调用 AI）：识别说话人 → �
 **Q：支持哪些模型接口？**
 A：任意 OpenAI 兼容接口（OpenAI、DeepSeek、Kimi、智谱、Groq、OpenRouter、Ollama……）以及 Anthropic Claude。
 
+**Q：手机 APK 连不上服务器 / 登录报错？**
+A：APK 是纯客户端，需要指定运行 SoulMate 的电脑地址：
+1. 在电脑上执行 `ipconfig` 查看局域网 IP（如 `192.168.1.100`），手机与电脑连同一 Wi-Fi
+2. 打开 App → 登录页下方「连接不上？配置服务器地址」→ 填写 `http://192.168.1.100:8000/api` → 测试连接 → 保存并重载
+3. 也可在「设置 → 服务器地址」中随时修改
+> 电脑端防火墙需放行 8000 端口（入站 TCP）。
+
+**Q：Windows 版启动闪退？**
+A：请确认使用 v1.1.1 及以上版本。旧版本在中文系统（GBK 编码）下启动打印 emoji 会崩溃，已修复；若仍闪退，请把 `%APPDATA%\SoulMate` 目录删除后重试，或在 GitHub Issues 中反馈。
+
 ## 🤝 贡献
 
 欢迎 Issue 和 PR！

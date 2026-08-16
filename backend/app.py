@@ -8,6 +8,14 @@ import threading
 import webbrowser
 from contextlib import asynccontextmanager
 
+# Windows 控制台默认 GBK：打印 emoji 会抛 UnicodeEncodeError 导致打包版启动即闪退。
+# 强制 UTF-8 输出并用 replace 容错。
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
@@ -57,7 +65,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description="开源 AI 情感陪伴应用 — Replika 替代品",
-    version="1.1.0",
+    version="1.1.1",
     lifespan=lifespan,
 )
 
@@ -133,7 +141,7 @@ else:
     def root():
         return {
             "name": settings.APP_NAME,
-            "version": "1.1.0",
+            "version": "1.1.1",
             "status": "running",
             "docs": "/docs",
         }
@@ -151,4 +159,6 @@ if __name__ == "__main__":
         print(f"💝 SoulMate 启动中... 浏览器将自动打开 http://localhost:{port}")
         threading.Thread(target=open_browser, args=(port,), daemon=True).start()
 
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
+    # 直接传 app 实例而非字符串 "app:app"：
+    # PyInstaller 冻结环境下按模块名重新导入主脚本会失败（Could not import module "app"）
+    uvicorn.run(app, host="0.0.0.0", port=port, reload=False)

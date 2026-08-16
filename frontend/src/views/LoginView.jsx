@@ -1,19 +1,47 @@
 import { useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
-import { Heart, Eye, EyeOff, Mail, Lock } from 'lucide-react'
+import { Heart, Eye, EyeOff, Mail, Lock, Server, ChevronDown, Loader2, CheckCircle, XCircle } from 'lucide-react'
 import useAuthStore from '@/stores/authStore'
+import { getApiBase, setApiBase } from '@/lib/api'
+import { cn } from '@/lib/utils'
 
 export default function LoginView() {
   const { login, isLoading, error, clearError } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showServer, setShowServer] = useState(false)
+  const [serverUrl, setServerUrl] = useState(getApiBase() === '/api' ? '' : getApiBase())
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!email || !password) return
     clearError()
     await login(email, password)
+  }
+
+  const handleTest = async () => {
+    setTesting(true)
+    setTestResult(null)
+    const url = (serverUrl || '').trim().replace(/\/+$/, '')
+    try {
+      const healthUrl = url
+        ? `${url.replace(/\/api$/, '')}/api/health`
+        : '/api/health'
+      const res = await fetch(healthUrl, { method: 'GET' })
+      setTestResult(res.ok ? { ok: true, msg: '连接正常 ✓' } : { ok: false, msg: `服务器响应异常 (HTTP ${res.status})` })
+    } catch {
+      setTestResult({ ok: false, msg: '无法连接，请检查地址与网络' })
+    }
+    setTesting(false)
+  }
+
+  const handleSave = () => {
+    setApiBase(serverUrl)
+    // 保存后立即重载，让所有请求使用新地址
+    window.location.reload()
   }
 
   return (
@@ -91,6 +119,54 @@ export default function LoginView() {
               立即注册
             </RouterLink>
           </p>
+
+          {/* 服务器设置（手机/平板端连接电脑版必须） */}
+          <div className="mt-6 pt-4 border-t border-warmth-100">
+            <button
+              onClick={() => setShowServer(!showServer)}
+              className="w-full flex items-center justify-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <Server className="w-3.5 h-3.5" />
+              连接不上？配置服务器地址
+              <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', showServer && 'rotate-180')} />
+            </button>
+
+            {showServer && (
+              <div className="mt-3 space-y-2 animate-fade-in">
+                <input
+                  type="text"
+                  value={serverUrl}
+                  onChange={(e) => { setServerUrl(e.target.value); setTestResult(null) }}
+                  placeholder="http://192.168.1.100:8000/api（留空 = 默认同源）"
+                  className="w-full px-4 py-2.5 bg-warmth-50 border border-warmth-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleTest}
+                    disabled={testing}
+                    className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
+                  >
+                    {testing ? <Loader2 className="w-4 h-4 animate-spin inline" /> : '测试连接'}
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    className="flex-1 py-2 bg-gradient-to-r from-rose-400 to-warmth-500 text-white rounded-xl text-sm font-medium hover:shadow-md transition-all"
+                  >
+                    保存并重载
+                  </button>
+                </div>
+                {testResult && (
+                  <p className={cn('flex items-center gap-1.5 text-xs', testResult.ok ? 'text-green-600' : 'text-red-500')}>
+                    {testResult.ok ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                    {testResult.msg}
+                  </p>
+                )}
+                <p className="text-[11px] text-gray-300 leading-relaxed">
+                  在运行 SoulMate 的电脑上执行 <code className="px-1 bg-warmth-50 rounded">ipconfig</code> 查看局域网 IP（如 192.168.1.100），手机与电脑需在同一网络。
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

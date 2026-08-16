@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { resolveAssetUrl } from '@/lib/api'
 import { Copy, Check } from 'lucide-react'
 import { useState } from 'react'
 
@@ -36,7 +37,7 @@ export default function ChatBubble({ message, character }) {
       {!isUser && (
         <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-warmth-300 to-rose-300 flex items-center justify-center flex-shrink-0 text-lg shadow-sm">
           {character?.avatar_image ? (
-            <img src={character.avatar_image} alt="" className="w-full h-full object-cover" />
+            <img src={resolveAssetUrl(character.avatar_image)} alt="" className="w-full h-full object-cover" />
           ) : (
             charAvatar
           )}
