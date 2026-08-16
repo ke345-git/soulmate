@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description="开源 AI 情感陪伴应用 — Replika 替代品",
-    version="1.1.1",
+    version="1.1.2",
     lifespan=lifespan,
 )
 
@@ -141,10 +141,26 @@ else:
     def root():
         return {
             "name": settings.APP_NAME,
-            "version": "1.1.1",
+            "version": "1.1.2",
             "status": "running",
             "docs": "/docs",
         }
+
+
+def find_free_port(start: int = 8000, max_try: int = 20) -> int:
+    """从 start 开始向上探测空闲端口。
+    避免端口被占用（如网页版/其他实例已运行）时绑定失败直接闪退。
+    """
+    import socket
+
+    for port in range(start, start + max_try):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", port))
+                return port
+            except OSError:
+                continue
+    return start
 
 
 # ─── 启动入口 ───────────────────────────────────────────
@@ -155,7 +171,9 @@ if __name__ == "__main__":
     is_desktop = os.environ.get("SOULMATE_DESKTOP", "0") == "1"
 
     if is_desktop or getattr(sys, 'frozen', False):
-        # 桌面模式：自动打开浏览器
+        # 桌面模式：端口被占用时自动换用空闲端口，而不是崩溃
+        port = find_free_port(port)
+        # 自动打开浏览器
         print(f"💝 SoulMate 启动中... 浏览器将自动打开 http://localhost:{port}")
         threading.Thread(target=open_browser, args=(port,), daemon=True).start()
 

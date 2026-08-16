@@ -246,6 +246,10 @@ export default function SettingsView() {
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             保存 API Keys
           </button>
+          <p className="mt-3 text-xs text-gray-400 leading-relaxed">
+            💡 Key 保存成功后输入框会清空，这是安全设计（Key 不会回显）。上方的「已配置」绿色标记表示已保存。
+            注意：OpenAI 官方 Key 填第一栏；DeepSeek / 智谱 / 中转站等请到「模型」页面按对应预设配置。
+          </p>
         </div>
       </div>
 
@@ -283,7 +287,7 @@ export default function SettingsView() {
           <h2 className="text-lg font-semibold text-gray-700">关于 SoulMate</h2>
         </div>
         <div className="text-sm text-gray-400 space-y-1">
-          <p>版本：1.1.1</p>
+          <p>版本：1.1.2</p>
           <p>技术栈：FastAPI + React + SQLite</p>
           <p>开源协议：MIT</p>
           <p><a href="https://github.com/ke345-git/soulmate" target="_blank" rel="noopener noreferrer" className="text-rose-500 hover:underline">GitHub 仓库</a></p>

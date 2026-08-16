@@ -62,7 +62,7 @@ Section "Install"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "UninstallString" "$INSTDIR\uninstall.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "DisplayIcon" "$INSTDIR\SoulMate.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "Publisher" "SoulMate"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "DisplayVersion" "1.1.1"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "DisplayVersion" "1.1.2"
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "NoModify" 1
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SoulMate" "NoRepair" 1
 SectionEnd

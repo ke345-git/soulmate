@@ -245,6 +245,18 @@ export default function ModelConfigView() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  {model.has_api_key ? (
+                    <span
+                      className="px-2 py-0.5 bg-amber-50 text-amber-600 text-xs rounded-full font-medium"
+                      title="API Key 已保存（出于安全不回显）"
+                    >
+                      🔑 已设置
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 bg-gray-50 text-gray-400 text-xs rounded-full">
+                      未填 Key
+                    </span>
+                  )}
                   {model.is_active && (
                     <span className="px-2 py-0.5 bg-green-50 text-green-600 text-xs rounded-full font-medium">
                       使用中
