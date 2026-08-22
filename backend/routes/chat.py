@@ -3,7 +3,7 @@
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from database import get_db
@@ -24,6 +24,7 @@ router = APIRouter(prefix="/api/chat", tags=["聊天"])
 
 # --- Schemas ---
 class ChatRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     session_id: str | None = None
     character_id: str
     content: str

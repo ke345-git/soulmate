@@ -174,7 +174,7 @@ if __name__ == "__main__":
         # 桌面模式：端口被占用时自动换用空闲端口，而不是崩溃
         port = find_free_port(port)
         # 自动打开浏览器
-        print(f"💝 SoulMate 启动中... 浏览器将自动打开 http://localhost:{port}")
+        print(f"SoulMate starting... browser will open at http://localhost:{port}")
         threading.Thread(target=open_browser, args=(port,), daemon=True).start()
 
     # 直接传 app 实例而非字符串 "app:app"：
